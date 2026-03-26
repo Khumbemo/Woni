@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Woni — Exam Intelligence</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/shared.css"/>
+<style>
+body { background: var(--bg); overflow-x: hidden; }
+
+/* Hero */
+.hero {
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 40px 24px;
+  position: relative;
+}
+
+/* Decorative grid bg */
+.hero::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 48px 48px;
+  opacity: .6;
+}
+
+.hero-inner { position: relative; z-index: 1; text-align: center; max-width: 680px; width: 100%; }
+
+.woni-mark {
+  display: inline-flex; align-items: center; gap: 10px;
+  margin-bottom: 32px;
+  animation: fadeDown .6s ease both;
+}
+.woni-dot {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.woni-wordmark {
+  font-family: var(--serif);
+  font-size: 28px; font-weight: 900;
+  letter-spacing: -1px;
+  color: var(--text);
+}
+
+.hero-tagline {
+  font-family: var(--mono);
+  font-size: 11px; letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 16px;
+  animation: fadeDown .6s .1s ease both;
+}
+
+.hero-title {
+  font-family: var(--serif);
+  font-size: clamp(38px, 7vw, 72px);
+  font-weight: 900;
+  line-height: 1.0;
+  letter-spacing: -2px;
+  color: var(--text);
+  margin-bottom: 20px;
+  animation: fadeDown .6s .15s ease both;
+}
+.hero-title em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+.hero-sub {
+  font-size: 16px; line-height: 1.7;
+  color: var(--muted);
+  max-width: 440px;
+  margin: 0 auto 56px;
+  animation: fadeDown .6s .2s ease both;
+}
+
+/* Exam cards */
+.exam-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  width: 100%;
+  max-width: 580px;
+  margin: 0 auto 40px;
+  animation: fadeUp .7s .3s ease both;
+}
+
+.exam-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px 24px;
+  cursor: pointer;
+  text-decoration: none;
+  display: block;
+  transition: all .22s ease;
+  position: relative;
+  overflow: hidden;
+}
+.exam-card::after {
+  content: '';
+  position: absolute; inset: 0;
+  opacity: 0;
+  transition: opacity .22s;
+  border-radius: 16px;
+}
+.exam-card.npsc::after { background: rgba(16,185,129,.04); }
+.exam-card.csir::after { background: rgba(59,130,246,.04); }
+.exam-card:hover { transform: translateY(-4px); border-color: var(--border-hover); box-shadow: 0 16px 40px rgba(0,0,0,.12); }
+.exam-card:hover::after { opacity: 1; }
+
+.ec-label {
+  font-family: var(--mono);
+  font-size: 10px; font-weight: 500;
+  letter-spacing: 2px; text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.ec-label.npsc { color: var(--green); }
+.ec-label.csir { color: var(--blue); }
+
+.ec-title {
+  font-family: var(--serif);
+  font-size: 22px; font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+  line-height: 1.2;
+}
+
+.ec-sub {
+  font-size: 12px; color: var(--muted); line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.ec-pills {
+  display: flex; flex-wrap: wrap; gap: 5px;
+  margin-bottom: 20px;
+}
+.ec-pill {
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 10px; font-weight: 500;
+  background: var(--surface2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.ec-arrow {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600;
+}
+.ec-arrow.npsc { color: var(--green); }
+.ec-arrow.csir { color: var(--blue); }
+
+/* Api key row */
+.key-row {
+  display: flex; gap: 8px; align-items: center;
+  max-width: 440px; margin: 0 auto;
+  animation: fadeUp .6s .45s ease both;
+}
+.key-row input {
+  flex: 1; padding: 10px 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text);
+  font-family: var(--mono); font-size: 12px; outline: none;
+  transition: border-color .15s;
+}
+.key-row input:focus { border-color: var(--accent); }
+.key-row button {
+  padding: 10px 18px; background: var(--accent);
+  border: none; border-radius: 8px; color: #fff;
+  font-family: var(--sans); font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  transition: opacity .15s;
+}
+.key-row button:hover { opacity: .88; }
+.key-link {
+  display: block; text-align: center; margin-top: 10px;
+  font-size: 11px; color: var(--muted);
+  animation: fadeUp .6s .5s ease both;
+}
+.key-link a { color: var(--accent); text-decoration: none; }
+.key-link a:hover { text-decoration: underline; }
+
+.key-status {
+  font-size: 11px; color: var(--green); text-align: center;
+  margin-top: 6px; min-height: 16px;
+  font-family: var(--mono);
+  animation: fadeUp .6s .5s ease both;
+}
+
+/* Footer */
+.site-footer {
+  position: relative; z-index: 1;
+  text-align: center; padding: 0 0 28px;
+  font-size: 11px; color: var(--muted2);
+}
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--text); }
+
+@keyframes fadeDown { from { opacity:0; transform:translateY(-12px); } to { opacity:1; transform:none; } }
+@keyframes fadeUp   { from { opacity:0; transform:translateY(14px);  } to { opacity:1; transform:none; } }
+
+@media (max-width: 520px) {
+  .exam-cards { grid-template-columns: 1fr; }
+  .hero-title { letter-spacing: -1px; }
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-inner">
+
+    <div class="woni-mark">
+      <div class="woni-dot">W</div>
+      <span class="woni-wordmark">Woni</span>
+    </div>
+
+    <p class="hero-tagline">AI-powered exam intelligence</p>
+
+    <h1 class="hero-title">
+      Study smarter.<br><em>Not harder.</em>
+    </h1>
+
+    <p class="hero-sub">
+      Upload past question papers, discover high-frequency topics, generate targeted notes, and export study packs — powered by free AI.
+    </p>
+
+    <div class="exam-cards">
+      <a href="pages/npsc.html" class="exam-card npsc">
+        <div class="ec-label npsc">Nagaland PSC</div>
+        <div class="ec-title">NPSC Exam</div>
+        <div class="ec-sub">Combined Competitive Examination for Nagaland state services</div>
+        <div class="ec-pills">
+          <span class="ec-pill">General Studies</span>
+          <span class="ec-pill">Nagaland Affairs</span>
+          <span class="ec-pill">Polity</span>
+          <span class="ec-pill">Economy</span>
+        </div>
+        <div class="ec-arrow npsc">
+          Open NPSC Tool
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </div>
+      </a>
+
+      <a href="pages/csir.html" class="exam-card csir">
+        <div class="ec-label csir">CSIR NET</div>
+        <div class="ec-title">CSIR NET Exam</div>
+        <div class="ec-sub">National Eligibility Test for JRF & Lectureship in science subjects</div>
+        <div class="ec-pills">
+          <span class="ec-pill">Life Sciences</span>
+          <span class="ec-pill">Chemistry</span>
+          <span class="ec-pill">Physics</span>
+          <span class="ec-pill">Maths</span>
+        </div>
+        <div class="ec-arrow csir">
+          Open CSIR Tool
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </div>
+      </a>
+    </div>
+
+    <div class="key-row">
+      <input type="password" id="apiKey" placeholder="Groq API key  gsk_..." autocomplete="off"/>
+      <button onclick="saveKey()">Save Key</button>
+    </div>
+    <div class="key-status" id="key-status"></div>
+    <p class="key-link">Free key at <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a> — no credit card needed</p>
+
+  </div>
+
+  <footer class="site-footer">
+    <p>Woni · Open source · <a href="https://github.com/your-username/woni" target="_blank">GitHub</a> · Powered by Groq (free)</p>
+  </footer>
+</div>
+
+<script>
+const saved = localStorage.getItem('woni_groq_key');
+if (saved) {
+  document.getElementById('apiKey').value = saved;
+  document.getElementById('key-status').textContent = '✓ API key loaded';
+}
+function saveKey() {
+  const k = document.getElementById('apiKey').value.trim();
+  if (!k.startsWith('gsk_') && k.length > 0) {
+    document.getElementById('key-status').style.color = 'var(--red)';
+    document.getElementById('key-status').textContent = '✗ Key should start with gsk_';
+    return;
+  }
+  localStorage.setItem('woni_groq_key', k);
+  document.getElementById('key-status').style.color = 'var(--green)';
+  document.getElementById('key-status').textContent = k ? '✓ Key saved — ready to use' : 'Key cleared';
+}
+document.getElementById('apiKey').addEventListener('keydown', e => { if(e.key==='Enter') saveKey(); });
+</script>
+</body>
+</html>
