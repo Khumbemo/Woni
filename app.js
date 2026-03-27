@@ -16,6 +16,7 @@ const app = {
     analysisStatus: '',
     analysisProgress: 0,
     session: null,
+    activeLibExam: 'csir_net',
   },
 
   // --- Initialization ---
@@ -45,7 +46,7 @@ const app = {
 
   async initDB() {
     try {
-      this.state.db = await idb.openDB('woni_db', 2, {
+      this.state.db = await idb.openDB('woni_db', 3, {
         upgrade(db, oldVersion, newVersion) {
           // Papers store
           if (!db.objectStoreNames.contains('papers')) {
@@ -78,6 +79,12 @@ const app = {
           if (!db.objectStoreNames.contains('mock_tests')) {
             const mStore = db.createObjectStore('mock_tests', { keyPath: 'id', autoIncrement: true });
             mStore.createIndex('exam', 'exam');
+          }
+          // Library store
+          if (!db.objectStoreNames.contains('library')) {
+            const lStore = db.createObjectStore('library', { keyPath: 'id', autoIncrement: true });
+            lStore.createIndex('exam', 'exam');
+            lStore.createIndex('subject', 'subject');
           }
         },
       });
@@ -181,6 +188,7 @@ const app = {
     });
 
     if (viewId === 'dashboard') this.updateDashboard();
+    if (viewId === 'library') this.updateLibraryView();
     if (viewId === 'upload') this.updateUploadView();
     if (viewId === 'practice') this.updatePracticeView();
     if (viewId === 'progress') this.updateProgressView();
@@ -199,6 +207,12 @@ const app = {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     let particles = [];
+    const mouse = { x: null, y: null, radius: 150 };
+
+    window.addEventListener('mousemove', (e) => {
+      mouse.x = e.x;
+      mouse.y = e.y;
+    });
 
     const resize = () => {
       canvas.width = window.innerWidth;
@@ -212,14 +226,35 @@ const app = {
       constructor() {
         this.x = Math.random() * canvas.width;
         this.y = Math.random() * canvas.height;
+        this.baseX = this.x;
+        this.baseY = this.y;
         this.size = Math.random() * 2 + 1;
-        this.speedX = Math.random() * 1 - 0.5;
-        this.speedY = Math.random() * 1 - 0.5;
-        this.color = document.body.classList.contains('dark-theme') ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
+        this.density = (Math.random() * 30) + 1;
+        this.speedX = Math.random() * 0.5 - 0.25;
+        this.speedY = Math.random() * 0.5 - 0.25;
+        this.color = document.body.classList.contains('dark-theme') ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)';
       }
       update() {
+        // Natural movement
         this.x += this.speedX;
         this.y += this.speedY;
+
+        // Interaction
+        let dx = mouse.x - this.x;
+        let dy = mouse.y - this.y;
+        let distance = Math.sqrt(dx * dx + dy * dy);
+        let forceDirectionX = dx / distance;
+        let forceDirectionY = dy / distance;
+        let maxDistance = mouse.radius;
+        let force = (maxDistance - distance) / maxDistance;
+        let directionX = forceDirectionX * force * this.density;
+        let directionY = forceDirectionY * force * this.density;
+
+        if (distance < mouse.radius) {
+          this.x -= directionX;
+          this.y -= directionY;
+        }
+
         if (this.x > canvas.width) this.x = 0;
         if (this.x < 0) this.x = canvas.width;
         if (this.y > canvas.height) this.y = 0;
@@ -235,7 +270,8 @@ const app = {
 
     const init = () => {
       particles = [];
-      for (let i = 0; i < 50; i++) {
+      const count = Math.min(Math.floor((canvas.width * canvas.height) / 15000), 100);
+      for (let i = 0; i < count; i++) {
         particles.push(new Particle());
       }
     };
@@ -332,6 +368,7 @@ const app = {
     const cards = await this.dbGetAll('flashcards');
 
     this.updateQuote();
+    this.updateBuddy();
 
     const avgScore = tests.length > 0
       ? Math.round(tests.reduce((acc, t) => acc + t.score, 0) / tests.length)
@@ -378,6 +415,34 @@ const app = {
      alert('Topic focus: ' + topicName);
   },
 
+  async updateBuddy() {
+    const tests = await this.dbGetAll('mock_tests');
+    const streak = parseInt(document.getElementById('dash-streak').textContent) || 0;
+
+    let msg = "Welcome back, scientist! What shall we discover today?";
+    let icon = "smile";
+
+    if (streak >= 7) {
+      msg = `🔥 ${streak} day streak! You're in the elite zone of focus!`;
+      icon = "zap";
+    } else if (tests.length > 0) {
+      const lastTest = tests[tests.length - 1];
+      if (lastTest.score > 80) {
+        msg = `Incredible! ${lastTest.score}% on your last test. Your mastery is growing!`;
+        icon = "award";
+      } else if (lastTest.score < 50) {
+        msg = "That last test was tough, but remember: failure is just data for success. Let's review!";
+        icon = "frown";
+      }
+    }
+
+    const msgEl = document.getElementById('buddy-msg');
+    const iconEl = document.getElementById('buddy-icon');
+    if (msgEl) msgEl.textContent = msg;
+    if (iconEl) iconEl.setAttribute('data-lucide', icon);
+    this.updateLucide();
+  },
+
   async updateQuote() {
     const quotes = [
       { text: "Science is a way of thinking much more than it is a body of knowledge.", author: "Carl Sagan" },
@@ -394,6 +459,121 @@ const app = {
     const authEl = document.getElementById('quote-author');
     if (textEl) textEl.textContent = `"${quote.text}"`;
     if (authEl) authEl.textContent = `— ${quote.author}`;
+  },
+
+  // --- Library Logic ---
+  CURATED_RESOURCES: {
+    csir_net: {
+      "Biochemistry": [
+        { title: "Principles of Biochemistry", author: "Lehninger", url: "https://archive.org/details/LehningerPrinciplesOfBiochemistry" },
+        { title: "Biochemistry Notes", author: "Open Library", url: "https://openlibrary.org/subjects/biochemistry" }
+      ],
+      "Molecular Biology": [
+        { title: "Molecular Biology of the Cell", author: "Alberts", url: "https://www.ncbi.nlm.nih.gov/books/NBK21054/" }
+      ]
+    },
+    npsc_cce: {
+      "Nagaland History": [
+        { title: "A Brief History of Nagaland", author: "State Portal", url: "https://www.nagaland.gov.in/portal/portal/StatePortal/Government/AboutNagaland" }
+      ],
+      "Indian Polity": [
+        { title: "Indian Polity", author: "Laxmikanth (Reference)", url: "https://archive.org/details/indianpolity5thedition" }
+      ]
+    }
+  },
+
+  updateLibraryView() {
+    const tabs = document.getElementById('lib-exam-tabs');
+    if (!tabs) return;
+
+    tabs.innerHTML = this.state.userExams.map(ex => `
+      <div class="lib-tab ${this.state.activeLibExam === ex.id ? 'active' : ''}"
+           onclick="app.setLibExam('${ex.id}')">
+        ${ex.name}
+      </div>
+    `).join('');
+
+    this.renderLibraryContent();
+  },
+
+  setLibExam(id) {
+    this.state.activeLibExam = id;
+    this.updateLibraryView();
+  },
+
+  async renderLibraryContent() {
+    const container = document.getElementById('lib-subjects');
+    if (!container) return;
+
+    const examId = this.state.activeLibExam;
+    const curated = this.CURATED_RESOURCES[examId] || {};
+    const userBooks = await this.dbGetFromIndex('library', 'exam', examId);
+
+    // Group user books by subject
+    const groupedUser = {};
+    userBooks.forEach(b => {
+      if (!groupedUser[b.subject]) groupedUser[b.subject] = [];
+      groupedUser[b.subject].push(b);
+    });
+
+    // Merge subjects
+    const allSubjects = Array.from(new Set([...Object.keys(curated), ...Object.keys(groupedUser)]));
+
+    if (allSubjects.length === 0) {
+      container.innerHTML = '<div class="empty-list">No books in this section yet. Add your own or wait for updates!</div>';
+      return;
+    }
+
+    container.innerHTML = allSubjects.map(sub => `
+      <div class="lib-subject-group">
+        <h3>${sub}</h3>
+        <div class="bookshelf">
+          ${(curated[sub] || []).map(b => `
+            <div class="book-card" onclick="window.open('${b.url}', '_blank')">
+              <div class="book-icon"><i data-lucide="external-link"></i></div>
+              <span class="book-title">${b.title}</span>
+            </div>
+          `).join('')}
+          ${(groupedUser[sub] || []).map(b => `
+            <div class="book-card" onclick="app.openLocalBook(${b.id})">
+              <div class="book-icon"><i data-lucide="file-text"></i></div>
+              <span class="book-title">${b.name}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+
+    this.updateLucide();
+  },
+
+  async handleLibraryUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const subject = prompt("Enter subject for this book (e.g., Biochemistry, History):") || "General";
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      await this.dbAdd('library', {
+        name: file.name,
+        exam: this.state.activeLibExam,
+        subject: subject,
+        data: e.target.result,
+        type: file.type
+      });
+      this.renderLibraryContent();
+      alert('Book added to your shelf!');
+    };
+    reader.readAsDataURL(file);
+  },
+
+  async openLocalBook(id) {
+    const book = await this.dbGet('library', id);
+    if (!book) return;
+
+    const win = window.open();
+    win.document.write(`<iframe src="${book.data}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
   },
 
   // --- Upload & Analysis Logic ---
@@ -429,10 +609,16 @@ const app = {
     if (list) {
       list.innerHTML = this.state.uploadFiles.map((f, i) => `
         <div class="uz-file">
-          <span>${f.name}</span>
-          <button onclick="app.removeFile(${i})">✕</button>
+          <span class="file-item-info">
+            <i data-lucide="file" class="file-icon-mini"></i>
+            ${f.name}
+          </span>
+          <button onclick="app.removeFile(${i})" class="remove-file-btn">
+            <i data-lucide="x"></i>
+          </button>
         </div>
       `).join('');
+      this.updateLucide();
     }
   },
 
@@ -514,7 +700,7 @@ const app = {
 
   async performAIAnalysis(examId, extractedTexts) {
     const combinedText = extractedTexts.map(t => `SOURCE: ${t.name}\n${t.text.slice(0, 4000)}`).join('\n---\n');
-    const prompt = `You are an AI specialized in exam preparation for ${examId}. Extract structured questions and topics. Return ONLY JSON. { "questions": [...], "topics": [...] }`;
+    const prompt = `You are an AI specialized in exam preparation for ${examId}. Extract structured questions and topics from the text. For each question, include options, answer, topic name, difficulty, and explanation. For each topic, include its name, frequency (0-100), and priority (high, med, low). Return ONLY a JSON object: { "questions": [...], "topics": [...] }`;
     const response = await this.groqCall(prompt);
     const result = this.parseJSON(response);
 

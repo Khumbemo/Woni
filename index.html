@@ -30,29 +30,41 @@
           <label class="exam-checkbox">
             <input type="checkbox" value="csir_net" data-name="CSIR NET">
             <div class="exam-card-mini">
-              <span class="exam-name">CSIR NET</span>
-              <span class="exam-desc">Life Sciences, Chem, Phys, Math</span>
+              <div class="ecm-icon"><i data-lucide="microscope"></i></div>
+              <div class="ecm-info">
+                <span class="exam-name">CSIR NET</span>
+                <span class="exam-desc">Life Sciences, Chem, Phys, Math</span>
+              </div>
             </div>
           </label>
           <label class="exam-checkbox">
             <input type="checkbox" value="npsc_cce" data-name="NPSC CCE">
             <div class="exam-card-mini">
-              <span class="exam-name">NPSC CCE</span>
-              <span class="exam-desc">Nagaland State Services</span>
+              <div class="ecm-icon"><i data-lucide="landmark"></i></div>
+              <div class="ecm-info">
+                <span class="exam-name">NPSC CCE</span>
+                <span class="exam-desc">Nagaland State Services</span>
+              </div>
             </div>
           </label>
           <label class="exam-checkbox">
             <input type="checkbox" value="gate_ls" data-name="GATE Life Science">
             <div class="exam-card-mini">
-              <span class="exam-name">GATE LS</span>
-              <span class="exam-desc">Life Sciences Engineering</span>
+              <div class="ecm-icon"><i data-lucide="dna"></i></div>
+              <div class="ecm-info">
+                <span class="exam-name">GATE LS</span>
+                <span class="exam-desc">Life Sciences Engineering</span>
+              </div>
             </div>
           </label>
           <label class="exam-checkbox">
             <input type="checkbox" value="slet" data-name="SLET">
             <div class="exam-card-mini">
-              <span class="exam-name">SLET</span>
-              <span class="exam-desc">State Level Eligibility Test</span>
+              <div class="ecm-icon"><i data-lucide="graduation-cap"></i></div>
+              <div class="ecm-info">
+                <span class="exam-name">SLET</span>
+                <span class="exam-desc">State Level Eligibility Test</span>
+              </div>
             </div>
           </label>
         </div>
@@ -65,6 +77,18 @@
 
       <!-- Dashboard View -->
       <section id="view-dashboard" class="view active">
+        <div class="dashboard-lively">
+          <div class="buddy-avatar" id="buddy-container">
+            <i data-lucide="sparkles" class="buddy-glow"></i>
+            <div class="buddy-face">
+              <i data-lucide="smile" id="buddy-icon"></i>
+            </div>
+          </div>
+          <div class="buddy-bubble" id="buddy-bubble">
+            <p id="buddy-msg">Hello scientist! Ready to conquer your goals today?</p>
+          </div>
+        </div>
+
         <header class="view-header">
           <div class="woni-mark-small">
             <div class="woni-dot-small">W</div>
@@ -261,6 +285,28 @@
         </div>
       </section>
 
+      <!-- Library View -->
+      <section id="view-library" class="view">
+        <header class="view-header">
+          <h2>Library</h2>
+          <button class="btn small" onclick="document.getElementById('lib-upload').click()">
+            <i data-lucide="plus"></i> Add Book
+          </button>
+          <input type="file" id="lib-upload" class="hidden" accept=".pdf,.txt" onchange="app.handleLibraryUpload(event)">
+        </header>
+
+        <div class="library-browser">
+          <div class="lib-exam-tabs" id="lib-exam-tabs">
+            <!-- Tabs injected by JS -->
+          </div>
+          <div class="lib-content">
+            <div class="lib-subjects" id="lib-subjects">
+              <!-- Subjects and Books injected by JS -->
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Settings View -->
       <section id="view-settings" class="view">
         <header class="view-header">
@@ -283,6 +329,18 @@
                </div>
                <input type="password" id="api-key-input" placeholder="gsk_...">
                <button class="btn small" onclick="app.saveApiKey()">Save</button>
+            </div>
+
+            <div class="guide-container">
+              <h4><i data-lucide="help-circle"></i> How to get your API Key</h4>
+              <ol class="guide-list">
+                <li>Visit <a href="https://console.groq.com/keys" target="_blank" class="accent-link">Groq Cloud Console</a>.</li>
+                <li>Sign up or Log in (it's free).</li>
+                <li>Click <strong>"Create API Key"</strong>.</li>
+                <li>Give it a name (e.g., "Woni App").</li>
+                <li>Copy the key (starts with <code>gsk_</code>) and paste it above.</li>
+              </ol>
+              <p class="muted-mini">Need help? Science never settles, and neither do we. Reach out if stuck!</p>
             </div>
           </div>
 
@@ -328,6 +386,10 @@
       <button class="nav-item active" data-view="dashboard">
         <span class="nav-icon"><i data-lucide="home"></i></span>
         <span class="nav-label">Home</span>
+      </button>
+      <button class="nav-item" data-view="library">
+        <span class="nav-icon"><i data-lucide="book-open"></i></span>
+        <span class="nav-label">Library</span>
       </button>
       <button class="nav-item" data-view="upload">
         <span class="nav-icon"><i data-lucide="upload"></i></span>
