@@ -136,6 +136,15 @@ const app = {
   },
 
   initEventListeners() {
+    // Swipe Navigation
+    let touchStartX = 0;
+    const content = document.getElementById('main-content');
+    content.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, { passive: true });
+    content.addEventListener('touchend', e => {
+      const touchEndX = e.changedTouches[0].screenX;
+      this.handleSwipe(touchStartX, touchEndX);
+    }, { passive: true });
+
     // Onboarding
     document.getElementById('save-exams-btn').addEventListener('click', () => this.saveExams());
 
@@ -171,7 +180,25 @@ const app = {
   },
 
   initNavigation() {
-    // Handle back button / hash changes if needed
+    this.VIEWS = ['dashboard', 'library', 'upload', 'practice', 'progress', 'settings'];
+  },
+
+  handleSwipe(start, end) {
+    const threshold = 100;
+    const diff = end - start;
+    if (Math.abs(diff) < threshold) return;
+
+    // Check if we are in a subview or session (swipe disabled)
+    if (!document.getElementById('active-session-overlay').classList.contains('hidden')) return;
+
+    const currentIndex = this.VIEWS.indexOf(this.state.currentView);
+    if (diff > 0 && currentIndex > 0) {
+      // Swipe Right -> Previous View
+      this.showView(this.VIEWS[currentIndex - 1]);
+    } else if (diff < 0 && currentIndex < this.VIEWS.length - 1) {
+      // Swipe Left -> Next View
+      this.showView(this.VIEWS[currentIndex + 1]);
+    }
   },
 
   // --- View Management ---
@@ -323,16 +350,8 @@ const app = {
     localStorage.setItem('woni_setup_done', 'true');
 
     this.hideSubView('onboarding-overlay');
-    this.updateActiveExamBadge();
     this.updateDashboard();
     this.showView('dashboard');
-  },
-
-  updateActiveExamBadge() {
-    const badge = document.getElementById('active-exam-badge');
-    if (badge && this.state.activeExam) {
-      badge.textContent = this.state.activeExam.name;
-    }
   },
 
   saveApiKey() {
@@ -393,21 +412,6 @@ const app = {
         </div>
       `).join('');
     }
-
-    const dueCount = cards.filter(c => c.nextReview <= Date.now()).length;
-    const reviewEl = document.getElementById('upcoming-reviews');
-    if (reviewEl) {
-      if (dueCount > 0) {
-        reviewEl.innerHTML = `
-          <div class="review-alert" onclick="app.showView('practice')">
-            <span>${dueCount} cards due for review</span>
-            <button class="btn accent small">Review Now</button>
-          </div>
-        `;
-      } else {
-        reviewEl.innerHTML = `<p class="muted">All cards reviewed! Check back tomorrow.</p>`;
-      }
-    }
     this.updateLucide();
   },
 
@@ -419,7 +423,7 @@ const app = {
     const tests = await this.dbGetAll('mock_tests');
     const streak = parseInt(document.getElementById('dash-streak').textContent) || 0;
 
-    let msg = "Welcome back, scientist! What shall we discover today?";
+    let msg = "Welcome back, scholar! What shall we discover today?";
     let icon = "smile";
 
     if (streak >= 7) {

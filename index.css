@@ -422,5 +422,19 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); font
 
 /* Responsive Adjustments */
 @media (min-width: 768px) {
-  .app-container { max-width: 600px; margin: 0 auto; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+  .app-container { max-width: 900px; margin: 0 auto; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+  .stats-grid { grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .lib-subjects { grid-template-columns: repeat(2, 1fr); }
+  .lib-subject-group { grid-column: span 2; }
+}
+
+@media (min-width: 1200px) {
+  .app-container { max-width: 1100px; }
+  .lib-subjects { grid-template-columns: repeat(2, 1fr); gap: 40px; }
+  .practice-options { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Ensure proper scrolling */
+.content-area {
+  -webkit-overflow-scrolling: touch;
 }
