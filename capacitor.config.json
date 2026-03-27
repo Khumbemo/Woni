@@ -1,0 +1,6 @@
+{
+  "appId": "app.woni.exam",
+  "appName": "Woni",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}
