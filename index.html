@@ -1,305 +1,313 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Woni — Exam Intelligence</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>"/>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="css/shared.css"/>
-<style>
-body { background: var(--bg); overflow-x: hidden; }
-
-/* Hero */
-.hero {
-  min-height: 100vh;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  padding: 40px 24px;
-  position: relative;
-}
-
-/* Decorative grid bg */
-.hero::before {
-  content: '';
-  position: fixed; inset: 0; z-index: 0;
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 48px 48px;
-  opacity: .6;
-}
-
-.hero-inner { position: relative; z-index: 1; text-align: center; max-width: 680px; width: 100%; }
-
-.woni-mark {
-  display: inline-flex; align-items: center; gap: 10px;
-  margin-bottom: 32px;
-  animation: fadeDown .6s ease both;
-}
-.woni-dot {
-  width: 36px; height: 36px; border-radius: 50%;
-  background: var(--accent);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 18px;
-}
-.woni-wordmark {
-  font-family: var(--serif);
-  font-size: 28px; font-weight: 900;
-  letter-spacing: -1px;
-  color: var(--text);
-}
-
-.hero-tagline {
-  font-family: var(--mono);
-  font-size: 11px; letter-spacing: 3px;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 16px;
-  animation: fadeDown .6s .1s ease both;
-}
-
-.hero-title {
-  font-family: var(--serif);
-  font-size: clamp(38px, 7vw, 72px);
-  font-weight: 900;
-  line-height: 1.0;
-  letter-spacing: -2px;
-  color: var(--text);
-  margin-bottom: 20px;
-  animation: fadeDown .6s .15s ease both;
-}
-.hero-title em {
-  font-style: italic;
-  color: var(--accent);
-}
-
-.hero-sub {
-  font-size: 16px; line-height: 1.7;
-  color: var(--muted);
-  max-width: 440px;
-  margin: 0 auto 56px;
-  animation: fadeDown .6s .2s ease both;
-}
-
-/* Exam cards */
-.exam-cards {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
-  width: 100%;
-  max-width: 580px;
-  margin: 0 auto 40px;
-  animation: fadeUp .7s .3s ease both;
-}
-
-.exam-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 28px 24px;
-  cursor: pointer;
-  text-decoration: none;
-  display: block;
-  transition: all .22s ease;
-  position: relative;
-  overflow: hidden;
-}
-.exam-card::after {
-  content: '';
-  position: absolute; inset: 0;
-  opacity: 0;
-  transition: opacity .22s;
-  border-radius: 16px;
-}
-.exam-card.npsc::after { background: rgba(16,185,129,.04); }
-.exam-card.csir::after { background: rgba(59,130,246,.04); }
-.exam-card:hover { transform: translateY(-4px); border-color: var(--border-hover); box-shadow: 0 16px 40px rgba(0,0,0,.12); }
-.exam-card:hover::after { opacity: 1; }
-
-.ec-label {
-  font-family: var(--mono);
-  font-size: 10px; font-weight: 500;
-  letter-spacing: 2px; text-transform: uppercase;
-  margin-bottom: 12px;
-}
-.ec-label.npsc { color: var(--green); }
-.ec-label.csir { color: var(--blue); }
-
-.ec-title {
-  font-family: var(--serif);
-  font-size: 22px; font-weight: 700;
-  color: var(--text);
-  margin-bottom: 6px;
-  line-height: 1.2;
-}
-
-.ec-sub {
-  font-size: 12px; color: var(--muted); line-height: 1.6;
-  margin-bottom: 20px;
-}
-
-.ec-pills {
-  display: flex; flex-wrap: wrap; gap: 5px;
-  margin-bottom: 20px;
-}
-.ec-pill {
-  padding: 3px 9px;
-  border-radius: 20px;
-  font-size: 10px; font-weight: 500;
-  background: var(--surface2);
-  color: var(--muted);
-  border: 1px solid var(--border);
-}
-
-.ec-arrow {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 12px; font-weight: 600;
-}
-.ec-arrow.npsc { color: var(--green); }
-.ec-arrow.csir { color: var(--blue); }
-
-/* Api key row */
-.key-row {
-  display: flex; gap: 8px; align-items: center;
-  max-width: 440px; margin: 0 auto;
-  animation: fadeUp .6s .45s ease both;
-}
-.key-row input {
-  flex: 1; padding: 10px 14px;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 8px; color: var(--text);
-  font-family: var(--mono); font-size: 12px; outline: none;
-  transition: border-color .15s;
-}
-.key-row input:focus { border-color: var(--accent); }
-.key-row button {
-  padding: 10px 18px; background: var(--accent);
-  border: none; border-radius: 8px; color: #fff;
-  font-family: var(--sans); font-size: 12px; font-weight: 600;
-  cursor: pointer; white-space: nowrap;
-  transition: opacity .15s;
-}
-.key-row button:hover { opacity: .88; }
-.key-link {
-  display: block; text-align: center; margin-top: 10px;
-  font-size: 11px; color: var(--muted);
-  animation: fadeUp .6s .5s ease both;
-}
-.key-link a { color: var(--accent); text-decoration: none; }
-.key-link a:hover { text-decoration: underline; }
-
-.key-status {
-  font-size: 11px; color: var(--green); text-align: center;
-  margin-top: 6px; min-height: 16px;
-  font-family: var(--mono);
-  animation: fadeUp .6s .5s ease both;
-}
-
-/* Footer */
-.site-footer {
-  position: relative; z-index: 1;
-  text-align: center; padding: 0 0 28px;
-  font-size: 11px; color: var(--muted2);
-}
-.site-footer a { color: var(--muted); text-decoration: none; }
-.site-footer a:hover { color: var(--text); }
-
-@keyframes fadeDown { from { opacity:0; transform:translateY(-12px); } to { opacity:1; transform:none; } }
-@keyframes fadeUp   { from { opacity:0; transform:translateY(14px);  } to { opacity:1; transform:none; } }
-
-@media (max-width: 520px) {
-  .exam-cards { grid-template-columns: 1fr; }
-  .hero-title { letter-spacing: -1px; }
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Woni — AI Exam Intelligence</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="index.css" />
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://unpkg.com/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/idb@8/build/umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
+<body class="dark-theme">
+  <div id="app" class="app-container">
 
-<div class="hero">
-  <div class="hero-inner">
-
-    <div class="woni-mark">
-      <div class="woni-dot">W</div>
-      <span class="woni-wordmark">Woni</span>
+    <!-- Onboarding / Exam Selection (Overlay) -->
+    <div id="onboarding-overlay" class="overlay hidden">
+      <div class="overlay-content">
+        <h1 class="hero-title">Welcome to <em>Woni</em></h1>
+        <p class="hero-sub">Select your target exams to get started.</p>
+        <div class="exam-selection-grid">
+          <label class="exam-checkbox">
+            <input type="checkbox" value="csir_net" data-name="CSIR NET">
+            <div class="exam-card-mini">
+              <span class="exam-name">CSIR NET</span>
+              <span class="exam-desc">Life Sciences, Chem, Phys, Math</span>
+            </div>
+          </label>
+          <label class="exam-checkbox">
+            <input type="checkbox" value="npsc_cce" data-name="NPSC CCE">
+            <div class="exam-card-mini">
+              <span class="exam-name">NPSC CCE</span>
+              <span class="exam-desc">Nagaland State Services</span>
+            </div>
+          </label>
+          <label class="exam-checkbox">
+            <input type="checkbox" value="gate_ls" data-name="GATE Life Science">
+            <div class="exam-card-mini">
+              <span class="exam-name">GATE LS</span>
+              <span class="exam-desc">Life Sciences Engineering</span>
+            </div>
+          </label>
+          <label class="exam-checkbox">
+            <input type="checkbox" value="slet" data-name="SLET">
+            <div class="exam-card-mini">
+              <span class="exam-name">SLET</span>
+              <span class="exam-desc">State Level Eligibility Test</span>
+            </div>
+          </label>
+        </div>
+        <button id="save-exams-btn" class="btn accent large">Continue →</button>
+      </div>
     </div>
 
-    <p class="hero-tagline">AI-powered exam intelligence</p>
+    <!-- Main Content Area -->
+    <main id="main-content" class="content-area">
 
-    <h1 class="hero-title">
-      Study smarter.<br><em>Not harder.</em>
-    </h1>
+      <!-- Dashboard View -->
+      <section id="view-dashboard" class="view active">
+        <header class="view-header">
+          <div class="woni-mark-small">
+            <div class="woni-dot-small">W</div>
+            <span class="woni-wordmark-small">Woni</span>
+          </div>
+          <div class="header-actions">
+            <span id="active-exam-badge" class="badge">NPSC CCE</span>
+          </div>
+        </header>
 
-    <p class="hero-sub">
-      Upload past question papers, discover high-frequency topics, generate targeted notes, and export study packs — powered by free AI.
-    </p>
-
-    <div class="exam-cards">
-      <a href="pages/npsc.html" class="exam-card npsc">
-        <div class="ec-label npsc">Nagaland PSC</div>
-        <div class="ec-title">NPSC Exam</div>
-        <div class="ec-sub">Combined Competitive Examination for Nagaland state services</div>
-        <div class="ec-pills">
-          <span class="ec-pill">General Studies</span>
-          <span class="ec-pill">Nagaland Affairs</span>
-          <span class="ec-pill">Polity</span>
-          <span class="ec-pill">Economy</span>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-label">Study Time</span>
+            <span class="stat-value" id="dash-study-time">0h</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Mastery</span>
+            <span class="stat-value" id="dash-mastery">0%</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Streak</span>
+            <span class="stat-value" id="dash-streak">0d</span>
+          </div>
         </div>
-        <div class="ec-arrow npsc">
-          Open NPSC Tool
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-        </div>
-      </a>
 
-      <a href="pages/csir.html" class="exam-card csir">
-        <div class="ec-label csir">CSIR NET</div>
-        <div class="ec-title">CSIR NET Exam</div>
-        <div class="ec-sub">National Eligibility Test for JRF & Lectureship in science subjects</div>
-        <div class="ec-pills">
-          <span class="ec-pill">Life Sciences</span>
-          <span class="ec-pill">Chemistry</span>
-          <span class="ec-pill">Physics</span>
-          <span class="ec-pill">Maths</span>
+        <div class="dashboard-sections">
+          <div class="dash-section">
+            <h3>Recommended for You</h3>
+            <div id="recommendations-list" class="empty-list">
+              Upload papers to see recommendations.
+            </div>
+          </div>
+          <div class="dash-section">
+            <h3>Upcoming Reviews</h3>
+            <div id="upcoming-reviews" class="review-queue-mini">
+              <p class="muted">No cards due for review.</p>
+            </div>
+          </div>
         </div>
-        <div class="ec-arrow csir">
-          Open CSIR Tool
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-        </div>
-      </a>
-    </div>
+      </section>
 
-    <div class="key-row">
-      <input type="password" id="apiKey" placeholder="Groq API key  gsk_..." autocomplete="off"/>
-      <button onclick="saveKey()">Save Key</button>
-    </div>
-    <div class="key-status" id="key-status"></div>
-    <p class="key-link">Free key at <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a> — no credit card needed</p>
+      <!-- Upload View -->
+      <section id="view-upload" class="view">
+        <header class="view-header">
+          <h2>Upload & Analyze</h2>
+        </header>
+        <div class="upload-container">
+          <div class="exam-switcher-inline">
+            <label>Target Exam:</label>
+            <select id="upload-exam-select"></select>
+          </div>
+
+          <div class="upload-zone" id="drop-zone">
+            <input type="file" id="file-input" multiple accept=".pdf,.txt,.jpg,.jpeg,.png"/>
+            <div class="uz-icon">📁</div>
+            <div class="uz-title">Drop papers or images here</div>
+            <div class="uz-sub">PDF, TXT, or Photos of papers</div>
+            <div id="file-list" class="uz-files"></div>
+          </div>
+
+          <button id="start-analysis-btn" class="btn accent start-btn" disabled>
+            Analyze with AI →
+          </button>
+          <div id="analysis-progress" class="progress-container hidden">
+            <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+            <p id="progress-status" class="progress-status">Initializing...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Practice View -->
+      <section id="view-practice" class="view">
+        <header class="view-header">
+          <h2>Practice</h2>
+        </header>
+        <div class="practice-options">
+          <div class="practice-card" onclick="app.showMockTestSetup()">
+            <div class="pc-icon">📝</div>
+            <div class="pc-info">
+              <h4>Mock Test</h4>
+              <p>Simulate exam conditions with custom parameters.</p>
+            </div>
+          </div>
+          <div class="practice-card" onclick="app.startFlashcards()">
+            <div class="pc-icon">🗂️</div>
+            <div class="pc-info">
+              <h4>Flashcards</h4>
+              <p>Spaced repetition for long-term retention.</p>
+            </div>
+          </div>
+          <div class="practice-card" onclick="app.showTopicGrid()">
+            <div class="pc-icon">📊</div>
+            <div class="pc-info">
+              <h4>Topic Mastery</h4>
+              <p>Practice specific topics you're weak in.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mock Test Setup (Hidden by default) -->
+        <div id="mock-test-setup" class="sub-view hidden">
+          <div class="setup-form">
+            <h3>Mock Test Configuration</h3>
+            <div class="form-group">
+              <label>Exam</label>
+              <select id="mock-exam-select"></select>
+            </div>
+            <div class="form-group">
+              <label>Topics</label>
+              <div id="mock-topic-checks" class="checkbox-group">
+                <p class="muted">Select an exam to see topics</p>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Questions</label>
+              <input type="number" id="mock-q-count" value="20" min="5" max="100">
+            </div>
+            <div class="form-actions">
+              <button class="btn" onclick="app.hideSubView('mock-test-setup')">Cancel</button>
+              <button class="btn accent" onclick="app.startMockTest()">Start Test</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Mock Test / Flashcards View (Overlay) -->
+        <div id="active-session-overlay" class="overlay hidden">
+          <div class="session-container">
+             <div id="session-header" class="session-header">
+               <span id="session-title">Mock Test</span>
+               <span id="session-timer" class="mono">00:00</span>
+               <button class="close-session" onclick="app.exitSession()">✕</button>
+             </div>
+             <div id="session-content" class="session-content">
+               <!-- Content injected by JS -->
+             </div>
+             <div id="session-footer" class="session-footer">
+               <!-- Footer buttons injected by JS -->
+             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Progress View -->
+      <section id="view-progress" class="view">
+        <header class="view-header">
+          <h2>Your Progress</h2>
+        </header>
+        <div class="progress-dashboard">
+          <div class="chart-card">
+            <h4>Performance Trend</h4>
+            <canvas id="performance-chart"></canvas>
+          </div>
+          <div class="chart-card">
+            <h4>Topic Mastery Heatmap</h4>
+            <div id="mastery-heatmap" class="heatmap-container"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Settings View -->
+      <section id="view-settings" class="view">
+        <header class="view-header">
+          <h2>Settings</h2>
+        </header>
+        <div class="settings-list">
+          <div class="settings-group">
+            <h3>Profile & Sync</h3>
+            <div class="setting-item">
+              <div class="setting-info">
+                <span>Cloud Sync</span>
+                <p class="muted">Backup your data to the cloud (Optional)</p>
+              </div>
+              <button class="btn small" disabled>Coming Soon</button>
+            </div>
+            <div class="setting-item">
+               <div class="setting-info">
+                 <span>API Key</span>
+                 <p class="muted">Groq API Key for analysis</p>
+               </div>
+               <input type="password" id="api-key-input" placeholder="gsk_...">
+               <button class="btn small" onclick="app.saveApiKey()">Save</button>
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <h3>Preferences</h3>
+            <div class="setting-item">
+              <span>Appearance</span>
+              <select id="theme-select" onchange="app.setTheme(this.value)">
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+                <option value="system">System</option>
+              </select>
+            </div>
+            <div class="setting-item">
+               <span>Target Exams</span>
+               <button class="btn small" onclick="app.showOnboarding()">Change</button>
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <h3>Data Management</h3>
+            <div class="setting-item">
+              <span>Export Data (JSON)</span>
+              <button class="btn small" onclick="app.exportData()">Export</button>
+            </div>
+            <div class="setting-item">
+              <span>Import Data</span>
+              <input type="file" id="import-file" class="hidden" accept=".json" onchange="app.importData(event)">
+              <button class="btn small" onclick="document.getElementById('import-file').click()">Import</button>
+            </div>
+            <div class="setting-item">
+              <span class="danger">Clear All Data</span>
+              <button class="btn small danger" onclick="app.clearAllData()">Reset</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-view="dashboard">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">Home</span>
+      </button>
+      <button class="nav-item" data-view="upload">
+        <span class="nav-icon">📤</span>
+        <span class="nav-label">Upload</span>
+      </button>
+      <button class="nav-item" data-view="practice">
+        <span class="nav-icon">🎯</span>
+        <span class="nav-label">Practice</span>
+      </button>
+      <button class="nav-item" data-view="progress">
+        <span class="nav-icon">📈</span>
+        <span class="nav-label">Stats</span>
+      </button>
+      <button class="nav-item" data-view="settings">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-label">Settings</span>
+      </button>
+    </nav>
 
   </div>
 
-  <footer class="site-footer">
-    <p>Woni · Open source · <a href="https://github.com/your-username/woni" target="_blank">GitHub</a> · Powered by Groq (free)</p>
-  </footer>
-</div>
-
-<script>
-const saved = localStorage.getItem('woni_groq_key');
-if (saved) {
-  document.getElementById('apiKey').value = saved;
-  document.getElementById('key-status').textContent = '✓ API key loaded';
-}
-function saveKey() {
-  const k = document.getElementById('apiKey').value.trim();
-  if (!k.startsWith('gsk_') && k.length > 0) {
-    document.getElementById('key-status').style.color = 'var(--red)';
-    document.getElementById('key-status').textContent = '✗ Key should start with gsk_';
-    return;
-  }
-  localStorage.setItem('woni_groq_key', k);
-  document.getElementById('key-status').style.color = 'var(--green)';
-  document.getElementById('key-status').textContent = k ? '✓ Key saved — ready to use' : 'Key cleared';
-}
-document.getElementById('apiKey').addEventListener('keydown', e => { if(e.key==='Enter') saveKey(); });
-</script>
+  <script src="app.js"></script>
 </body>
 </html>

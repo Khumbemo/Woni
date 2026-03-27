@@ -1,136 +1,89 @@
-# 📚 Woni — Exam Intelligence
+# 📚 Woni — AI Exam Intelligence
 
-> AI-powered study tool for **NPSC** (Nagaland PSC) and **CSIR NET** — two completely separate, independent tools under one roof.
+Woni is a specialized exam preparation app designed for students targeting **CSIR NET**, **GATE Life Science**, **SLET**, and **NPSC** exams. It uses AI-powered content analysis to extract key topics, identify high-frequency questions, and provide personalized study recommendations.
 
-**Live demo**: Deploy by dragging the folder to [Netlify Drop](https://app.netlify.com/drop)
+## ✨ Features
 
----
+- **Multi-Exam Support**: Choose from CSIR NET, GATE Life Science, SLET, or NPSC CCE.
+- **Offline-First Storage**: All your papers, questions, and progress are stored locally using IndexedDB.
+- **AI-Powered Analysis**: Upload PDFs, images, or text files to extract questions and identify important topics via Groq API.
+- **Mock Tests**: Generate custom tests based on specific exams and topics.
+- **Spaced Repetition Flashcards**: Auto-generated flashcards with an SM-2 algorithm to optimize retention.
+- **Progress Tracking**: Visualized performance trends and topic mastery heatmaps.
+- **PDF Export**: Export your mock test results as study-friendly PDFs.
+- **Dark/Light Mode**: Customizable UI themes.
 
-## ✨ What Woni Does
+## 🚀 Getting Started
 
-### For NPSC (Nagaland PSC — CCE)
-- Upload past NPSC CCE question papers (PDF/TXT)
-- AI identifies high-frequency topics across years
-- Filters: All / High / Medium / Low priority
-- Generate targeted study notes, concise bullets, or practice MCQs
-- Export notes and full topic reports as PDF
+### Prerequisites
 
-### For CSIR NET
-- Completely separate tool — independent of NPSC
-- Select your subject: Life Sciences, Chemical, Physical, Mathematical, Earth Sciences
-- AI analyzes Part A / Part B / Part C topic distribution separately
-- Filter by exam part + priority level
-- Generate subject-specific notes with exam-style MCQs
-- Export PDF study packs
+- A modern web browser.
+- A free Groq API Key (get one at [console.groq.com](https://console.groq.com/keys)).
 
----
+### Running the App Locally
 
-## 🆓 100% Free — Powered by Groq
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-username/woni.git
+   cd woni
+   ```
 
-Uses [Groq's free API](https://console.groq.com/keys) for ultra-fast AI inference.
+2. Start a local development server:
+   ```bash
+   # Python
+   python3 -m http.server 8080
 
-- **No credit card** required
-- **No backend** — pure HTML + CSS + JS
-- **No subscription** — runs entirely in your browser
-- Model: `llama-3.3-70b-versatile` (free tier)
+   # Node.js
+   npx serve .
+   ```
 
----
+3. Open your browser and navigate to `http://localhost:8080`.
 
-## 🚀 Quick Start
+4. Go to **Settings**, paste your **Groq API Key**, and click **Save**.
 
-### Option 1 — Open directly (zero setup)
-```bash
-git clone https://github.com/your-username/woni.git
-cd woni
-open index.html        # macOS
-# or double-click index.html on Windows
-```
+## 📱 Mobile Deployment (Capacitor)
 
-### Option 2 — Local server
-```bash
-# Python
-python -m http.server 8080
+Woni is designed to be mobile-friendly and can be bundled using Capacitor:
 
-# Node.js
-npx serve .
+1. Install Capacitor:
+   ```bash
+   npm install @capacitor/core @capacitor/cli
+   ```
 
-# Then open http://localhost:8080
-```
+2. Initialize Capacitor:
+   ```bash
+   npx cap init
+   ```
 
-### Option 3 — Deploy free
-Drag the `woni/` folder to **[Netlify Drop](https://app.netlify.com/drop)** — live in 30 seconds.
+3. Add platforms:
+   ```bash
+   npx cap add android
+   npx cap add ios
+   ```
 
-Or push to GitHub and enable **GitHub Pages** (Settings → Pages → Deploy from branch).
+4. Build and sync:
+   ```bash
+   npx cap copy
+   npx cap open android
+   ```
 
----
+## 🛠️ Built With
 
-## 🔑 Getting Your Free API Key
-
-1. Go to **[console.groq.com/keys](https://console.groq.com/keys)**
-2. Sign up (free, no credit card)
-3. Click **Create API Key**
-4. Open Woni → paste the key → click **Save Key**
-
-Your key is saved in your browser's localStorage — never sent anywhere except Groq's API.
-
----
-
-## 📁 Project Structure
-
-```
-woni/
-├── index.html          # Home screen — choose NPSC or CSIR NET
-├── css/
-│   └── shared.css      # Design system shared by all pages
-├── js/
-│   └── woni.js         # Shared utilities (API, PDF, rendering)
-├── pages/
-│   ├── npsc.html       # NPSC CCE — fully independent tool
-│   └── csir.html       # CSIR NET — fully independent tool
-└── README.md
-```
-
-**NPSC and CSIR NET are completely separate** — different exams, different question formats, different syllabi, different AI prompts. They share only CSS and utility functions.
-
----
+- **Vanilla JavaScript**: Lightweight and modular SPA architecture.
+- **IndexedDB (idb)**: For robust client-side data persistence.
+- **Tesseract.js**: For OCR text extraction from images.
+- **pdf.js**: For PDF text parsing.
+- **Chart.js**: For progress visualizations.
+- **jsPDF**: For generating result PDFs.
+- **Groq API**: Powered by `llama-3.3-70b-versatile` for high-speed AI analysis.
 
 ## ⚙️ How it Works
 
-1. **Upload**: PDF text is extracted in-browser using `pdf.js` (no server needed)
-2. **Analyze**: Text is sent to Groq API with an exam-specific prompt
-3. **Results**: AI returns structured JSON with topics, frequencies, and priorities
-4. **Notes**: AI generates HTML notes tailored to the topic and exam format
-5. **Export**: `jsPDF` creates a downloadable PDF from the notes
+1. **Extraction**: `pdf.js` and `Tesseract.js` extract raw text from your uploads.
+2. **Parsing**: The text is sent to the Groq API with a specialized prompt to identify structured questions and topics.
+3. **Storage**: Extracted data is saved locally to IndexedDB.
+4. **Practice**: The app selects questions from your local bank for tests or schedules flashcard reviews using spaced repetition.
+5. **Insights**: Your performance in tests updates your topic mastery, which is then visualized on the dashboard.
 
 ---
-
-## 🎛️ CSIR NET Subjects Supported
-
-| Code | Subject |
-|------|---------|
-| `life` | Life Sciences |
-| `chem` | Chemical Sciences |
-| `phys` | Physical Sciences |
-| `math` | Mathematical Sciences |
-| `earth` | Earth Sciences |
-
----
-
-## 📄 License
-
-MIT — free to use, fork, and build on.
-
----
-
-## 🙌 Contributing
-
-Ideas welcome:
-- Year-on-year trend charts within same exam
-- Offline mode (service worker)
-- Hindi/Nagamese UI language option
-- Bookmark topics for quick-access
-- Shared notes via URL (read-only link)
-
----
-
-*Woni is not affiliated with NPSC or CSIR. All AI-generated content is for study assistance only.*
+*Woni is an open-source tool for study assistance. It is not affiliated with the official exam boards.*
