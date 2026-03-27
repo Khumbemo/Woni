@@ -44,13 +44,19 @@
 /* Reset & Global */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; width: 100%; overflow: hidden; -webkit-tap-highlight-color: transparent; }
-body { font-family: var(--sans); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.6; }
 
 /* App Container */
 .app-container {
   display: flex; flex-direction: column;
   height: 100vh; width: 100vw;
   position: relative;
+  z-index: 1;
+}
+
+.particle-bg {
+  position: fixed; inset: 0; width: 100vw; height: 100vh;
+  z-index: 0; pointer-events: none; opacity: 0.5;
 }
 
 /* Header */
@@ -100,15 +106,16 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); font
   flex: 1; padding: 10px 0; border-radius: 12px;
 }
 .nav-item.active { color: var(--accent); }
-.nav-icon { font-size: 20px; }
+.nav-icon { display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; }
+.nav-icon svg { width: 100%; height: 100%; }
 .nav-item.active .nav-icon { transform: translateY(-2px); }
 
 /* Overlays */
 .overlay {
   position: fixed; inset: 0; z-index: 1000;
-  background: rgba(12, 12, 15, 0.95);
+  background: rgba(12, 12, 15, 0.98);
   display: flex; align-items: center; justify-content: center;
-  backdrop-filter: blur(8px); padding: 20px;
+  backdrop-filter: blur(12px); padding: 20px;
 }
 .overlay.hidden { display: none; }
 .overlay-content {
@@ -166,6 +173,19 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); font
   border-radius: 12px; padding: 16px; display: flex; align-items: center;
   justify-content: space-between; cursor: pointer;
 }
+
+/* Quotes */
+.quote-container {
+  padding: 24px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; margin-bottom: 24px; text-align: center;
+  position: relative; overflow: hidden;
+}
+.quote-container::before {
+  content: '"'; position: absolute; top: -10px; left: 10px;
+  font-family: var(--serif); font-size: 80px; color: var(--border); opacity: 0.3;
+}
+.quote-text { font-family: var(--serif); font-size: 18px; font-style: italic; color: var(--text); margin-bottom: 8px; position: relative; }
+.quote-author { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
 
 /* Upload Zone */
 .upload-zone {
@@ -239,6 +259,28 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); font
 .results-box { text-align: center; padding: 40px 20px; }
 .res-score { font-family: var(--serif); font-size: 64px; font-weight: 900; color: var(--accent); margin-bottom: 16px; }
 
+/* Focus Timer */
+.timer-container {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 24px; padding: 32px; width: 100%; max-width: 360px;
+  text-align: center;
+}
+.timer-display { margin: 40px 0; display: flex; flex-direction: column; align-items: center; }
+.timer-circle { position: relative; width: 200px; height: 200px; margin-bottom: 24px; }
+.timer-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.timer-track { fill: none; stroke: var(--surface2); stroke-width: 6; }
+.timer-fill {
+  fill: none; stroke: var(--accent); stroke-width: 6;
+  stroke-dasharray: 283; stroke-dashoffset: 0;
+  stroke-linecap: round; transition: stroke-dashoffset 0.1s;
+}
+.timer-time {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 42px; font-weight: 700; color: var(--text);
+}
+.timer-label { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+.timer-controls { display: flex; gap: 16px; justify-content: center; }
+
 /* Session Overlay */
 .session-container {
   background: var(--bg); width: 100%; height: 100%;
@@ -287,9 +329,10 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); font
 /* General UI Components */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 10px 20px; border-radius: 10px; border: none;
-  font-family: var(--sans); font-size: 14px; font-weight: 600;
+  padding: 12px 24px; border-radius: 12px; border: none;
+  font-family: var(--sans); font-size: 15px; font-weight: 600;
   cursor: pointer; transition: all 0.2s; background: var(--surface2); color: var(--text);
+  min-height: 48px;
 }
 .btn.accent { background: var(--accent); color: #fff; }
 .btn.large { padding: 14px 28px; font-size: 16px; width: 100%; }

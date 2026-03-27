@@ -13,8 +13,12 @@
   <script src="https://unpkg.com/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/idb@8/build/umd.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body class="dark-theme">
+  <!-- Science Background -->
+  <canvas id="particle-canvas" class="particle-bg"></canvas>
+
   <div id="app" class="app-container">
 
     <!-- Onboarding / Exam Selection (Overlay) -->
@@ -71,6 +75,11 @@
           </div>
         </header>
 
+        <div class="quote-container" id="quote-box">
+          <p id="quote-text" class="quote-text">"The important thing is not to stop questioning."</p>
+          <span id="quote-author" class="quote-author">— Albert Einstein</span>
+        </div>
+
         <div class="stats-grid">
           <div class="stat-card">
             <span class="stat-label">Study Time</span>
@@ -115,7 +124,7 @@
 
           <div class="upload-zone" id="drop-zone">
             <input type="file" id="file-input" multiple accept=".pdf,.txt,.jpg,.jpeg,.png"/>
-            <div class="uz-icon">📁</div>
+            <div class="uz-icon"><i data-lucide="upload-cloud"></i></div>
             <div class="uz-title">Drop papers or images here</div>
             <div class="uz-sub">PDF, TXT, or Photos of papers</div>
             <div id="file-list" class="uz-files"></div>
@@ -138,24 +147,32 @@
         </header>
         <div class="practice-options">
           <div class="practice-card" onclick="app.showMockTestSetup()">
-            <div class="pc-icon">📝</div>
+            <div class="pc-icon"><i data-lucide="file-text"></i></div>
             <div class="pc-info">
               <h4>Mock Test</h4>
               <p>Simulate exam conditions with custom parameters.</p>
             </div>
           </div>
           <div class="practice-card" onclick="app.startFlashcards()">
-            <div class="pc-icon">🗂️</div>
+            <div class="pc-icon"><i data-lucide="layers"></i></div>
             <div class="pc-info">
               <h4>Flashcards</h4>
               <p>Spaced repetition for long-term retention.</p>
             </div>
           </div>
           <div class="practice-card" onclick="app.showTopicGrid()">
-            <div class="pc-icon">📊</div>
+            <div class="pc-icon"><i data-lucide="bar-chart-3"></i></div>
             <div class="pc-info">
               <h4>Topic Mastery</h4>
               <p>Practice specific topics you're weak in.</p>
+            </div>
+          </div>
+          <!-- Focus Timer Feature -->
+          <div class="practice-card" onclick="app.showFocusTimer()">
+            <div class="pc-icon"><i data-lucide="timer"></i></div>
+            <div class="pc-info">
+              <h4>Focus Timer</h4>
+              <p>Stay productive with the Pomodoro technique.</p>
             </div>
           </div>
         </div>
@@ -181,6 +198,30 @@
             <div class="form-actions">
               <button class="btn" onclick="app.hideSubView('mock-test-setup')">Cancel</button>
               <button class="btn accent" onclick="app.startMockTest()">Start Test</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Focus Timer View (Overlay) -->
+        <div id="focus-timer-overlay" class="overlay hidden">
+          <div class="timer-container">
+            <header class="session-header">
+              <span>Focus Session</span>
+              <button class="close-session" onclick="app.hideSubView('focus-timer-overlay')">✕</button>
+            </header>
+            <div class="timer-display">
+              <div class="timer-circle">
+                <svg class="timer-svg" viewBox="0 0 100 100">
+                  <circle class="timer-track" cx="50" cy="50" r="45"></circle>
+                  <circle id="timer-progress" class="timer-fill" cx="50" cy="50" r="45"></circle>
+                </svg>
+                <div id="timer-time" class="timer-time">25:00</div>
+              </div>
+              <div id="timer-label" class="timer-label">Study Time</div>
+            </div>
+            <div class="timer-controls">
+              <button id="timer-start-btn" class="btn accent" onclick="app.toggleTimer()">Start</button>
+              <button class="btn" onclick="app.resetTimer()">Reset</button>
             </div>
           </div>
         </div>
@@ -285,23 +326,23 @@
     <!-- Bottom Navigation -->
     <nav class="bottom-nav">
       <button class="nav-item active" data-view="dashboard">
-        <span class="nav-icon">🏠</span>
+        <span class="nav-icon"><i data-lucide="home"></i></span>
         <span class="nav-label">Home</span>
       </button>
       <button class="nav-item" data-view="upload">
-        <span class="nav-icon">📤</span>
+        <span class="nav-icon"><i data-lucide="upload"></i></span>
         <span class="nav-label">Upload</span>
       </button>
       <button class="nav-item" data-view="practice">
-        <span class="nav-icon">🎯</span>
+        <span class="nav-icon"><i data-lucide="target"></i></span>
         <span class="nav-label">Practice</span>
       </button>
       <button class="nav-item" data-view="progress">
-        <span class="nav-icon">📈</span>
+        <span class="nav-icon"><i data-lucide="trending-up"></i></span>
         <span class="nav-label">Stats</span>
       </button>
       <button class="nav-item" data-view="settings">
-        <span class="nav-icon">⚙️</span>
+        <span class="nav-icon"><i data-lucide="settings"></i></span>
         <span class="nav-label">Settings</span>
       </button>
     </nav>
