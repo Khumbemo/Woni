@@ -403,7 +403,7 @@ const app = {
     const topics = await this.dbGetFromIndex('topics', 'exam', this.state.activeExam?.id);
     const recList = document.getElementById('recommendations-list');
     if (recList && topics.length > 0) {
-      const weakTopics = topics.sort((a,b) => (a.mastery || 0) - (b.mastery || 0)).slice(0, 3);
+      const weakTopics = topics.sort((a, b) => (a.mastery || 0) - (b.mastery || 0)).slice(0, 3);
       recList.className = 'rec-list';
       recList.innerHTML = weakTopics.map(t => `
         <div class="rec-item" onclick="app.showTopicStudy('${t.name}')">
@@ -416,7 +416,7 @@ const app = {
   },
 
   showTopicStudy(topicName) {
-     alert('Topic focus: ' + topicName);
+    alert('Topic focus: ' + topicName);
   },
 
   async updateBuddy() {
@@ -760,12 +760,12 @@ const app = {
       console.error('Failed to parse JSON', e, raw);
       // Fallback: try to find an array if the object parse failed
       try {
-         const startArr = raw.indexOf('[');
-         const endArr = raw.lastIndexOf(']');
-         if (startArr !== -1 && endArr !== -1) {
-           return { questions: JSON.parse(raw.slice(startArr, endArr + 1)) };
-         }
-      } catch (e2) {}
+        const startArr = raw.indexOf('[');
+        const endArr = raw.lastIndexOf(']');
+        if (startArr !== -1 && endArr !== -1) {
+          return { questions: JSON.parse(raw.slice(startArr, endArr + 1)) };
+        }
+      } catch (e2) { }
       return {};
     }
   },
@@ -822,11 +822,11 @@ const app = {
 
   async startFlashcards() {
     const cards = await this.dbGetAll('flashcards');
-    const due = cards.filter(c => c.nextReview <= Date.now()).sort((a,b) => a.nextReview - b.nextReview);
+    const due = cards.filter(c => c.nextReview <= Date.now()).sort((a, b) => a.nextReview - b.nextReview);
 
     if (due.length === 0) {
-       alert(cards.length === 0 ? 'No flashcards available.' : 'All caught up!');
-       return;
+      alert(cards.length === 0 ? 'No flashcards available.' : 'All caught up!');
+      return;
     }
     this.openSession('Flashcards', 'flashcard', due);
   },
@@ -972,7 +972,7 @@ const app = {
       const diff = Date.now() - start;
       const m = Math.floor(diff / 60000);
       const s = Math.floor((diff % 60000) / 1000);
-      if (el) el.textContent = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+      if (el) el.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     }, 1000);
   },
 
@@ -1063,7 +1063,7 @@ const app = {
     doc.setFontSize(12); let y = 70;
     s.data.forEach((q, i) => {
       if (y > 270) { doc.addPage(); y = 20; }
-      doc.setFont('helvetica', 'bold'); doc.text(`${i+1}. ${q.text.slice(0, 80)}${q.text.length > 80 ? '...' : ''}`, 20, y); y += 7;
+      doc.setFont('helvetica', 'bold'); doc.text(`${i + 1}. ${q.text.slice(0, 80)}${q.text.length > 80 ? '...' : ''}`, 20, y); y += 7;
       doc.setFont('helvetica', 'normal'); doc.text(`Your Answer: ${s.answers[i] || 'None'} | Correct: ${q.answer}`, 25, y); y += 10;
     });
     doc.save(`Woni_Result_${Date.now()}.pdf`);
@@ -1093,7 +1093,7 @@ const app = {
       if (topics.length > 0) {
         heatmap.innerHTML = topics.map(t => {
           const mastery = t.mastery || 0;
-          return `<div class="heatmap-topic" style="background: rgba(16, 185, 129, ${mastery/100 + 0.1})"><span class="ht-name">${t.name}</span><span class="ht-freq">${mastery}% Mastery</span><span class="ht-subtext">${t.frequency}% Importance</span></div>`;
+          return `<div class="heatmap-topic" style="background: rgba(16, 185, 129, ${mastery / 100 + 0.1})"><span class="ht-name">${t.name}</span><span class="ht-freq">${mastery}% Mastery</span><span class="ht-subtext">${t.frequency}% Importance</span></div>`;
         }).join('');
       } else {
         heatmap.innerHTML = `<p class="muted">No topics analyzed yet.</p>`;
@@ -1127,7 +1127,11 @@ const app = {
   },
 
   clearAllData() {
-    if (confirm('DANGER: This will delete ALL your study data, papers, and progress. Continue?')) { localStorage.clear(); location.reload(); }
+    if (confirm('DANGER: This will delete ALL your study data, papers, and progress. Continue?')) {
+      localStorage.clear();
+      indexedDB.deleteDatabase('woni_db');
+      location.reload();
+    }
   }
 };
 
