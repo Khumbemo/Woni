@@ -77,18 +77,6 @@
 
       <!-- Dashboard View -->
       <section id="view-dashboard" class="view active">
-        <div class="dashboard-lively">
-          <div class="buddy-avatar" id="buddy-container">
-            <i data-lucide="sparkles" class="buddy-glow"></i>
-            <div class="buddy-face">
-              <i data-lucide="smile" id="buddy-icon"></i>
-            </div>
-          </div>
-          <div class="buddy-bubble" id="buddy-bubble">
-            <p id="buddy-msg">Hello scholar! Ready to conquer your goals today?</p>
-          </div>
-        </div>
-
         <header class="view-header">
           <div class="woni-mark-small">
             <div class="woni-dot-small">W</div>
@@ -159,6 +147,18 @@
               <p>Add your own revision notes right after AI analysis.</p>
             </div>
             <div id="analysis-topics-list" class="analysis-topics-list"></div>
+          </div>
+
+          <div id="analysis-assistant" class="analysis-assistant hidden">
+            <div class="analysis-insights-head">
+              <h3>Ask AI About This Analysis</h3>
+              <p>Ask doubts, request explanations, or get a focused revision plan.</p>
+            </div>
+            <div id="analysis-chat-log" class="analysis-chat-log"></div>
+            <div class="analysis-chat-input-row">
+              <input id="analysis-chat-input" type="text" placeholder="Ask: Which topic should I revise first and why?" />
+              <button id="analysis-chat-send" class="btn small accent">Ask</button>
+            </div>
           </div>
         </div>
       </section>

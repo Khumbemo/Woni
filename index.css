@@ -260,6 +260,48 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); font
 .topic-note-actions { margin-top: 8px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .topic-note-saved { font-size: 11px; color: var(--green); }
 
+.analysis-assistant {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.analysis-chat-log {
+  max-height: 260px;
+  overflow-y: auto;
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.analysis-chat-msg {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.analysis-chat-msg.user {
+  background: rgba(249, 115, 22, 0.12);
+  border-color: rgba(249, 115, 22, 0.35);
+}
+.analysis-chat-msg.ai { background: var(--surface2); }
+.analysis-chat-input-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+.analysis-chat-input-row input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 10px 12px;
+  font-family: var(--sans);
+}
+
 /* Practice Cards */
 .practice-options { display: grid; gap: 16px; }
 .practice-card {

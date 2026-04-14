@@ -18,6 +18,7 @@ const app = {
     session: null,
     activeLibExam: 'csir_net',
     latestInsightTopicIds: [],
+    latestAnalysisContext: null,
   },
 
   // --- Initialization ---
@@ -178,6 +179,14 @@ const app = {
     }
 
     document.getElementById('start-analysis-btn').addEventListener('click', () => this.startAnalysis());
+    const chatSend = document.getElementById('analysis-chat-send');
+    const chatInput = document.getElementById('analysis-chat-input');
+    if (chatSend) chatSend.addEventListener('click', () => this.askAnalysisAssistant());
+    if (chatInput) {
+      chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') this.askAnalysisAssistant();
+      });
+    }
   },
 
   initNavigation() {
@@ -624,10 +633,16 @@ const app = {
     const select = document.getElementById('upload-exam-select');
     if (select) {
       select.innerHTML = this.state.userExams.map(ex => `<option value="${ex.id}">${ex.name}</option>`).join('');
-      select.onchange = (e) => this.renderAnalysisInsights(e.target.value);
+      select.onchange = (e) => {
+        this.renderAnalysisInsights(e.target.value);
+        this.renderAnalysisAssistant();
+      };
     }
     this.renderFileList();
-    if (select && select.value) this.renderAnalysisInsights(select.value);
+    if (select && select.value) {
+      this.renderAnalysisInsights(select.value);
+      this.renderAnalysisAssistant();
+    }
   },
 
   escapeHtml(text) {
@@ -646,7 +661,86 @@ const app = {
       .filter(t => (t.frequency || 0) >= 40 || ['high', 'med'].includes((t.priority || '').toLowerCase()))
       .sort((a, b) => (b.frequency || 0) - (a.frequency || 0))
       .slice(0, 6);
-    return important;
+    if (important.length > 0) return important;
+    return topics
+      .sort((a, b) => (b.frequency || 0) - (a.frequency || 0))
+      .slice(0, 6);
+  },
+
+  makeFallbackTopics(questions = []) {
+    const map = {};
+    for (const q of questions) {
+      const topicName = (q.topic || 'General').trim();
+      if (!map[topicName]) {
+        map[topicName] = { count: 0, examples: [] };
+      }
+      map[topicName].count++;
+      if (map[topicName].examples.length < 2) map[topicName].examples.push(q.text || '');
+    }
+    const total = questions.length || 1;
+    return Object.entries(map).map(([name, info]) => {
+      const frequency = Math.round((info.count / total) * 100);
+      const priority = frequency >= 35 ? 'high' : frequency >= 20 ? 'med' : 'low';
+      return {
+        name,
+        frequency,
+        priority,
+        focusReason: `Appears in ${info.count} extracted question(s).`,
+        note: `Focus on ${name}: revise core definitions, standard question patterns, and common mistakes.`,
+      };
+    }).sort((a, b) => b.frequency - a.frequency);
+  },
+
+  renderAnalysisAssistant() {
+    const wrapper = document.getElementById('analysis-assistant');
+    const log = document.getElementById('analysis-chat-log');
+    if (!wrapper || !log) return;
+    const ctx = this.state.latestAnalysisContext;
+    if (!ctx) {
+      wrapper.classList.add('hidden');
+      log.innerHTML = '';
+      return;
+    }
+    wrapper.classList.remove('hidden');
+    if (!ctx.chat || ctx.chat.length === 0) {
+      ctx.chat = [{
+        role: 'ai',
+        text: `Analysis loaded for ${ctx.examId}. Ask me anything about priority topics, likely repeated questions, or how to revise effectively.`,
+      }];
+    }
+    log.innerHTML = ctx.chat.map(m => `
+      <div class="analysis-chat-msg ${m.role === 'user' ? 'user' : 'ai'}">${this.escapeHtml(m.text)}</div>
+    `).join('');
+    log.scrollTop = log.scrollHeight;
+  },
+
+  async askAnalysisAssistant() {
+    const input = document.getElementById('analysis-chat-input');
+    const sendBtn = document.getElementById('analysis-chat-send');
+    if (!input) return;
+    const question = input.value.trim();
+    if (!question) return;
+    if (!this.state.latestAnalysisContext) {
+      alert('Run analysis first to ask topic-specific questions.');
+      return;
+    }
+    input.value = '';
+    if (sendBtn) sendBtn.disabled = true;
+    const ctx = this.state.latestAnalysisContext;
+    ctx.chat = ctx.chat || [];
+    ctx.chat.push({ role: 'user', text: question });
+    this.renderAnalysisAssistant();
+
+    try {
+      const prompt = `You are Woni study assistant. Use this analysis context to answer the student clearly.\nExam: ${ctx.examId}\nTop topics: ${ctx.topics.map(t => `${t.name} (${t.frequency}%/${t.priority})`).join(', ')}\nExample questions: ${ctx.questions.map(q => `- ${q}`).join('\n')}\n\nStudent question: ${question}\n\nGive concise practical answer with 3-6 bullets.`;
+      const answer = await this.groqTextCall(prompt);
+      ctx.chat.push({ role: 'ai', text: answer || 'I could not generate a response right now. Please try again.' });
+    } catch (e) {
+      ctx.chat.push({ role: 'ai', text: `I hit an error while answering: ${e.message}` });
+    } finally {
+      if (sendBtn) sendBtn.disabled = false;
+      this.renderAnalysisAssistant();
+    }
   },
 
   async renderAnalysisInsights(examId) {
@@ -776,10 +870,17 @@ const app = {
 
       if (fill) fill.style.width = '90%';
       if (status) status.textContent = 'AI is analyzing questions...';
-      await this.performAIAnalysis(examId, extractedTexts);
+      const analysis = await this.performAIAnalysis(examId, extractedTexts);
+      this.state.latestAnalysisContext = {
+        examId,
+        topics: (analysis?.topics || []).slice(0, 6),
+        questions: (analysis?.questions || []).slice(0, 5).map(q => q.text || '').filter(Boolean),
+        chat: [],
+      };
       if (fill) fill.style.width = '100%';
       if (status) status.textContent = 'Analysis complete!';
       await this.renderAnalysisInsights(examId);
+      this.renderAnalysisAssistant();
       await this.updateDashboard();
 
       setTimeout(() => {
@@ -819,24 +920,34 @@ const app = {
 
   async performAIAnalysis(examId, extractedTexts) {
     const combinedText = extractedTexts.map(t => `SOURCE: ${t.name}\n${t.text.slice(0, 4000)}`).join('\n---\n');
-    const prompt = `You are an AI specialized in exam preparation for ${examId}. Extract structured questions and topics from the text. For each question, include options, answer, topic name, difficulty, and explanation. For each topic, include its name, frequency (0-100), and priority (high, med, low). Return ONLY a JSON object: { "questions": [...], "topics": [...] }`;
+    const prompt = `You are an AI specialized in exam preparation for ${examId}. Extract structured questions and topics from the text. For each question, include options, answer, topic name, difficulty, and explanation. For each topic, include its name, frequency (0-100), priority (high, med, low), focusReason (why this topic repeats), and note (short revision guidance for student). Return ONLY a JSON object: { "questions": [...], "topics": [...] }`;
     const response = await this.groqCall(prompt);
     const result = this.parseJSON(response);
+    const questions = Array.isArray(result.questions) ? result.questions : [];
+    let topics = Array.isArray(result.topics) ? result.topics : [];
 
-    if (result.questions) {
-      for (const q of result.questions) {
+    if (topics.length === 0 && questions.length > 0) {
+      topics = this.makeFallbackTopics(questions);
+    }
+
+    if (questions.length > 0) {
+      for (const q of questions) {
         q.exam = examId;
         await this.dbAdd('questions', q);
         await this.dbAdd('flashcards', { questionId: null, front: q.text, back: `Answer: ${q.answer}\n\nExplanation: ${q.explanation}`, topic: q.topic, nextReview: Date.now(), interval: 0, repetition: 0, ease: 2.5 });
       }
     }
-    if (result.topics) {
-      for (const t of result.topics) {
+    if (topics.length > 0) {
+      for (const t of topics) {
         t.id = `${examId}_${t.name}`;
         t.exam = examId;
+        if (!t.note) {
+          t.note = `Revise ${t.name} with short concept summaries and at least 10 practice questions.`;
+        }
         await this.dbPut('topics', t);
       }
     }
+    return { questions, topics };
   },
 
   async groqCall(prompt) {
@@ -848,6 +959,17 @@ const app = {
     if (!resp.ok) throw new Error(`Groq API Error: ${resp.status}`);
     const data = await resp.json();
     return data.choices[0].message.content;
+  },
+
+  async groqTextCall(prompt) {
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.state.apiKey}` },
+      body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: prompt }] }),
+    });
+    if (!resp.ok) throw new Error(`Groq API Error: ${resp.status}`);
+    const data = await resp.json();
+    return (data.choices?.[0]?.message?.content || '').trim();
   },
 
   parseJSON(raw) {
