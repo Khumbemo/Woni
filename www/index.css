@@ -266,13 +266,19 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); font
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
+  min-height: 68vh;
+  display: flex;
+  flex-direction: column;
 }
 .analysis-chat-log {
-  max-height: 260px;
+  flex: 1;
+  min-height: 50vh;
+  max-height: none;
   overflow-y: auto;
   display: grid;
   gap: 8px;
   margin-bottom: 10px;
+  padding-right: 2px;
 }
 .analysis-chat-msg {
   padding: 10px 12px;
@@ -291,6 +297,10 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); font
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 8px;
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  padding-top: 8px;
 }
 .analysis-chat-input-row input {
   width: 100%;
@@ -298,8 +308,58 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); font
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text);
-  padding: 10px 12px;
+  padding: 12px 14px;
   font-family: var(--sans);
+  min-height: 46px;
+}
+
+.analysis-review {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.analysis-review-summary {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.analysis-review-list {
+  display: grid;
+  gap: 10px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+.analysis-review-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--surface2);
+}
+.analysis-review-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.analysis-review-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+.analysis-review-meta {
+  font-size: 11px;
+  color: var(--muted);
+}
+.analysis-review-issues {
+  font-size: 11px;
+  color: var(--gold);
+}
+.analysis-review-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 /* Practice Cards */

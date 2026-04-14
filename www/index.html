@@ -32,18 +32,18 @@
             <div class="exam-card-mini">
               <div class="ecm-icon"><i data-lucide="microscope"></i></div>
               <div class="ecm-info">
-                <span class="exam-name">CSIR NET</span>
-                <span class="exam-desc">Life Sciences, Chem, Phys, Math</span>
+                <span class="exam-name">CSIR NET Life Science</span>
+                <span class="exam-desc">Core Life Science topics and PYQs</span>
               </div>
             </div>
           </label>
           <label class="exam-checkbox">
-            <input type="checkbox" value="npsc_cce" data-name="NPSC CCE">
+            <input type="checkbox" value="ugc_net_env" data-name="UGC NET Environment">
             <div class="exam-card-mini">
-              <div class="ecm-icon"><i data-lucide="landmark"></i></div>
+              <div class="ecm-icon"><i data-lucide="leaf"></i></div>
               <div class="ecm-info">
-                <span class="exam-name">NPSC CCE</span>
-                <span class="exam-desc">Nagaland State Services</span>
+                <span class="exam-name">UGC NET Environment</span>
+                <span class="exam-desc">Environmental Sciences and sustainability</span>
               </div>
             </div>
           </label>
@@ -58,12 +58,22 @@
             </div>
           </label>
           <label class="exam-checkbox">
-            <input type="checkbox" value="slet" data-name="SLET">
+            <input type="checkbox" value="npsc_ncs" data-name="NPSC NCS">
+            <div class="exam-card-mini">
+              <div class="ecm-icon"><i data-lucide="landmark"></i></div>
+              <div class="ecm-info">
+                <span class="exam-name">NPSC NCS</span>
+                <span class="exam-desc">Nagaland Civil Services exam prep</span>
+              </div>
+            </div>
+          </label>
+          <label class="exam-checkbox">
+            <input type="checkbox" value="slet_ls" data-name="SLET Life Science">
             <div class="exam-card-mini">
               <div class="ecm-icon"><i data-lucide="graduation-cap"></i></div>
               <div class="ecm-info">
-                <span class="exam-name">SLET</span>
-                <span class="exam-desc">State Level Eligibility Test</span>
+                <span class="exam-name">SLET Life Science</span>
+                <span class="exam-desc">State eligibility test for life science</span>
               </div>
             </div>
           </label>
@@ -120,18 +130,7 @@
           <h2>Upload & Analyze</h2>
         </header>
         <div class="upload-container">
-          <div class="exam-switcher-inline">
-            <label>Target Exam:</label>
-            <select id="upload-exam-select"></select>
-          </div>
-
-          <div class="upload-zone" id="drop-zone">
-            <input type="file" id="file-input" multiple accept=".pdf,.txt,.jpg,.jpeg,.png"/>
-            <div class="uz-icon"><i data-lucide="upload-cloud"></i></div>
-            <div class="uz-title">Drop papers or images here</div>
-            <div class="uz-sub">PDF, TXT, or Photos of papers</div>
-            <div id="file-list" class="uz-files"></div>
-          </div>
+          <input type="file" id="file-input" class="hidden" multiple accept=".pdf,.txt,.jpg,.jpeg,.png"/>
 
           <button id="start-analysis-btn" class="btn accent start-btn" disabled>
             Analyze with AI →
@@ -141,12 +140,16 @@
             <p id="progress-status" class="progress-status">Initializing...</p>
           </div>
 
-          <div id="analysis-insights" class="analysis-insights hidden">
+          <div id="analysis-review" class="analysis-review hidden">
             <div class="analysis-insights-head">
-              <h3>Important Repeating Topics</h3>
-              <p>Add your own revision notes right after AI analysis.</p>
+              <h3>Human Review Required</h3>
+              <p>Review AI output quality before saving to your final question bank.</p>
             </div>
-            <div id="analysis-topics-list" class="analysis-topics-list"></div>
+            <div id="analysis-review-summary" class="analysis-review-summary"></div>
+            <div id="analysis-review-list" class="analysis-review-list"></div>
+            <div class="analysis-review-actions">
+              <button id="save-reviewed-analysis-btn" class="btn accent">Save Approved Items</button>
+            </div>
           </div>
 
           <div id="analysis-assistant" class="analysis-assistant hidden">
