@@ -471,10 +471,48 @@ const app = {
     csir_net: {
       "Biochemistry": [
         { title: "Principles of Biochemistry", author: "Lehninger", url: "https://archive.org/details/LehningerPrinciplesOfBiochemistry" },
-        { title: "Biochemistry Notes", author: "Open Library", url: "https://openlibrary.org/subjects/biochemistry" }
+        { title: "Biochemistry Notes", author: "Open Library", url: "https://openlibrary.org/subjects/biochemistry" },
+        { title: "Harper's Illustrated Biochemistry", author: "Rodwell et al.", url: "https://openlibrary.org/search?q=Harper%27s+Illustrated+Biochemistry" }
       ],
       "Molecular Biology": [
-        { title: "Molecular Biology of the Cell", author: "Alberts", url: "https://www.ncbi.nlm.nih.gov/books/NBK21054/" }
+        { title: "Molecular Biology of the Cell", author: "Alberts", url: "https://www.ncbi.nlm.nih.gov/books/NBK21054/" },
+        { title: "Molecular Biology Notes", author: "Open Library", url: "https://openlibrary.org/subjects/molecular_biology" }
+      ],
+      "Cell Biology": [
+        { title: "Cell Biology", author: "OpenStax", url: "https://openstax.org/details/books/biology-2e" },
+        { title: "The Cell: A Molecular Approach", author: "NCBI Bookshelf", url: "https://www.ncbi.nlm.nih.gov/books/NBK9839/" }
+      ],
+      "Genetics": [
+        { title: "Concepts of Genetics", author: "Open Library", url: "https://openlibrary.org/subjects/genetics" },
+        { title: "Human Molecular Genetics", author: "NCBI Bookshelf", url: "https://www.ncbi.nlm.nih.gov/books/NBK21114/" }
+      ],
+      "Ecology & Evolution": [
+        { title: "Ecology (Open Textbook)", author: "OpenStax", url: "https://openstax.org/details/books/biology-2e" },
+        { title: "Evolution", author: "Open Library", url: "https://openlibrary.org/subjects/evolution_(biology)" }
+      ],
+      "Plant Physiology": [
+        { title: "Plant Physiology Notes", author: "Open Library", url: "https://openlibrary.org/subjects/plant_physiology" },
+        { title: "Plant Biology (Open Textbook)", author: "LibreTexts", url: "https://bio.libretexts.org/Bookshelves/Botany" }
+      ],
+      "Animal Physiology": [
+        { title: "Animal Physiology", author: "Open Library", url: "https://openlibrary.org/subjects/animal_physiology" },
+        { title: "Comparative Physiology", author: "Open Library", url: "https://openlibrary.org/search?q=comparative+physiology" }
+      ],
+      "Immunology": [
+        { title: "Immunobiology", author: "Open Library", url: "https://openlibrary.org/search?q=immunobiology" },
+        { title: "Immunology", author: "Open Library", url: "https://openlibrary.org/subjects/immunology" }
+      ],
+      "Microbiology": [
+        { title: "Microbiology 2e", author: "OpenStax", url: "https://openstax.org/details/books/microbiology-2e" },
+        { title: "General Microbiology", author: "Open Library", url: "https://openlibrary.org/subjects/microbiology" }
+      ],
+      "Biotechnology": [
+        { title: "Biotechnology", author: "Open Library", url: "https://openlibrary.org/subjects/biotechnology" },
+        { title: "Recombinant DNA", author: "Open Library", url: "https://openlibrary.org/search?q=recombinant+DNA" }
+      ],
+      "Previous Year Papers": [
+        { title: "CSIR NET Life Science PYQs", author: "NTA / CSIR Resources", url: "https://csirnet.nta.ac.in/" },
+        { title: "CSIR NET Syllabus & Notices", author: "CSIR HRDG", url: "https://csirhrdg.res.in/" }
       ]
     },
     npsc_cce: {
