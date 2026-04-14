@@ -1,0 +1,26 @@
+{
+  "name": "woni-1",
+  "version": "1.0.0",
+  "description": "Woni is a specialized exam preparation app designed for students targeting **CSIR NET**, **GATE Life Science**, **SLET**, and **NPSC** exams. It uses AI-powered content analysis to extract key topics, identify high-frequency questions, and provide personalized study recommendations.",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Khumbemo/Woni.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Khumbemo/Woni/issues"
+  },
+  "homepage": "https://github.com/Khumbemo/Woni#readme",
+  "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/cli": "^8.3.0",
+    "@capacitor/core": "^8.3.0"
+  }
+}
