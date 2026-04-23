@@ -51,7 +51,7 @@ export const authMixin = {
     const btn = document.getElementById('auth-submit-btn');
 
     if (!email || !password) {
-      alert('Please enter email and password');
+      this.showToast('Please enter email and password', 'error');
       return;
     }
 
@@ -71,7 +71,7 @@ export const authMixin = {
       }
       localStorage.removeItem('woni_guest_mode');
     } catch (e) {
-      alert(e.message);
+      this.showToast(e.message, 'error');
     } finally {
       btn.disabled = false;
       btn.textContent = 'Sign In / Sign Up';

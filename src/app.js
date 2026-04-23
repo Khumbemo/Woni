@@ -5,6 +5,9 @@
 import { ALLOWED_EXAMS, EXAM_ID_MIGRATION, CURATED_RESOURCES } from './config.js';
 import { authMixin } from './auth.js';
 import { dbMixin } from './db.js';
+import { h, render } from 'preact';
+import Toast from './components/Toast.jsx';
+import FocusTimer from './components/FocusTimer.jsx';
 
 const app = {
   ALLOWED_EXAMS,
@@ -40,6 +43,10 @@ const app = {
 
     // Initialize IndexedDB
     await this.initDB();
+    
+    // Mount Global Toast Provider
+    const toastRoot = document.getElementById('toast-mount');
+    if (toastRoot) render(h(Toast, null), toastRoot);
 
     // Wait for Auth State
     firebase.auth().onAuthStateChanged(async (user) => {
@@ -332,7 +339,7 @@ const app = {
     const filtered = selected.filter(ex => this.ALLOWED_EXAMS.includes(ex.id));
 
     if (filtered.length === 0) {
-      alert('Please select at least one exam.');
+      this.showToast('Please select at least one exam.', 'error');
       return;
     }
 
@@ -352,16 +359,16 @@ const app = {
   saveApiKey() {
     const key = document.getElementById('api-key-input').value.trim();
     if (key && !key.startsWith('gsk_')) {
-      alert('Key should start with gsk_');
+      this.showToast('Key should start with gsk_', 'error');
       return;
     }
     this.state.apiKey = key;
     if (key) {
       localStorage.setItem('woni_groq_key', key);
-      alert('API Key saved!');
+      this.showToast('API Key saved successfully!', 'success');
     } else {
       localStorage.removeItem('woni_groq_key');
-      alert('API Key cleared.');
+      this.showToast('API Key cleared.', 'info');
     }
   },
 
@@ -424,7 +431,7 @@ const app = {
   },
 
   showTopicStudy(topicName) {
-    alert('Topic focus: ' + topicName);
+    this.showToast('Topic focus: ' + topicName, 'info');
   },
 
   async updateBuddy() {
@@ -561,7 +568,7 @@ const app = {
         type: file.type
       });
       this.renderLibraryContent();
-      alert('Book added to your shelf!');
+      this.showToast('Book added to your shelf!', 'success');
     };
     reader.readAsDataURL(file);
   },
@@ -606,7 +613,7 @@ const app = {
         const cloudData = doc.data();
         if (confirm('Cloud data found. Do you want to overwrite local data with cloud backup?')) {
           await this.applyCloudData(cloudData);
-          alert('Sync Complete: Data pulled from cloud.');
+          this.showToast('Sync Complete: Data pulled from cloud.', 'success');
           location.reload();
           return;
         }
@@ -624,10 +631,10 @@ const app = {
       };
 
       await userRef.set(localData);
-      alert('Sync Complete: Data pushed to cloud.');
+      this.showToast('Sync Complete: Data pushed to cloud.', 'success');
     } catch (e) {
       console.error('Sync failed', e);
-      alert('Sync failed: ' + e.message);
+      this.showToast('Sync failed: ' + e.message, 'error');
     } finally {
       btn.disabled = false;
       btn.textContent = originalText;
@@ -732,7 +739,7 @@ const app = {
     const question = input.value.trim();
     if (!question) return;
     if (!this.state.latestAnalysisContext) {
-      alert('Run analysis first to ask topic-specific questions.');
+      this.showToast('Run analysis first to ask topic-specific questions.', 'info');
       return;
     }
     input.value = '';
@@ -912,7 +919,7 @@ const app = {
     const approvedQuestions = p.questions.filter(q => q.approved);
     const approvedTopics = p.topics.filter(t => t.approved);
     if (approvedQuestions.length === 0 && approvedTopics.length === 0) {
-      alert('Select at least one approved item to save.');
+      this.showToast('Select at least one approved item to save.', 'error');
       return;
     }
     for (const q of approvedQuestions) {
@@ -932,7 +939,7 @@ const app = {
     this.state.pendingAnalysis = null;
     this.renderAnalysisReview();
     await this.updateDashboard();
-    alert(`Saved ${approvedQuestions.length} questions and ${approvedTopics.length} topics to your bank.`);
+    this.showToast(`Saved ${approvedQuestions.length} questions and ${approvedTopics.length} topics to your bank.`, 'success');
   },
 
   runBenchmarkSuite(benchmarkSet = []) {
@@ -999,11 +1006,11 @@ const app = {
     if (!this.state.apiKey) {
       const freemiumCount = parseInt(localStorage.getItem('woni_freemium_count') || '0', 10);
       if (freemiumCount >= 5) {
-        alert('Freemium limit reached (5/5). Please save your Groq API Key in Settings to continue.');
+        this.showToast('Freemium limit reached (5/5). Please save your API Key.', 'error');
         this.showView('settings');
         return;
       } else {
-        console.log(`Using Freemium Tier (${freemiumCount + 1}/5)`);
+        this.showToast(`Using Freemium Tier (${freemiumCount + 1}/5)`, 'info');
       }
     }
 
@@ -1015,7 +1022,7 @@ const app = {
     const examId = this.state.activeExam?.id || this.state.userExams[0]?.id;
 
     if (!examId) {
-      alert('Please select your target exam in onboarding/settings first.');
+      this.showToast('Please select your target exam first.', 'error');
       this.showOnboarding();
       return;
     }
@@ -1072,13 +1079,13 @@ const app = {
         if (btn) btn.disabled = false;
         this.state.uploadFiles = [];
         this.renderFileList();
-        alert('Analysis complete! Review flagged items, approve them, then save to bank.');
+        this.showToast('Analysis complete! Review flagged items, then save.', 'success');
       }, 1000);
     } catch (e) {
       console.error(e);
       if (status) status.textContent = 'Error: ' + e.message;
       if (btn) btn.disabled = false;
-      alert('Analysis failed: ' + e.message);
+      this.showToast('Analysis failed: ' + e.message, 'error');
     }
   },
 
@@ -1288,7 +1295,7 @@ const app = {
     }
 
     if (allQuestions.length === 0) {
-      alert('No questions found for the selected criteria.');
+      this.showToast('No questions found for the selected criteria.', 'info');
       return;
     }
 
@@ -1302,7 +1309,7 @@ const app = {
     const due = cards.filter(c => c.nextReview <= Date.now()).sort((a, b) => a.nextReview - b.nextReview);
 
     if (due.length === 0) {
-      alert(cards.length === 0 ? 'No flashcards available.' : 'All caught up!');
+      this.showToast(cards.length === 0 ? 'No flashcards available.' : 'All caught up!', 'info');
       return;
     }
     this.openSession('Flashcards', 'flashcard', due);
@@ -1466,68 +1473,23 @@ const app = {
     }
   },
 
-  // --- Focus Timer Logic ---
-  timer: { minutes: 25, seconds: 0, isRunning: false, interval: null, mode: 'study' },
-
+  // --- Focus Timer Logic (Preact) ---
   showFocusTimer() {
-    this.showSubView('focus-timer-overlay');
-  },
-
-  toggleTimer() {
-    const t = this.timer;
-    const btn = document.getElementById('timer-start-btn');
-    if (t.isRunning) {
-      clearInterval(t.interval); t.isRunning = false;
-      if (btn) btn.textContent = 'Resume';
-    } else {
-      t.isRunning = true;
-      if (btn) btn.textContent = 'Pause';
-      t.interval = setInterval(() => this.tickTimer(), 1000);
+    const overlay = document.getElementById('focus-timer-overlay');
+    const mountNode = document.getElementById('focus-timer-mount');
+    if (overlay) overlay.classList.remove('hidden');
+    if (mountNode) {
+      render(h(FocusTimer, {
+        onClose: () => {
+          render(null, mountNode);
+          if (overlay) overlay.classList.add('hidden');
+        }
+      }), mountNode);
     }
   },
 
-  tickTimer() {
-    const t = this.timer;
-    if (t.seconds === 0) {
-      if (t.minutes === 0) { this.timerFinished(); return; }
-      t.minutes--; t.seconds = 59;
-    } else t.seconds--;
-    this.updateTimerUI();
-  },
-
-  updateTimerUI() {
-    const t = this.timer;
-    const timeStr = `${t.minutes.toString().padStart(2, '0')}:${t.seconds.toString().padStart(2, '0')}`;
-    const timeEl = document.getElementById('timer-time');
-    if (timeEl) timeEl.textContent = timeStr;
-    const total = t.mode === 'study' ? 25 * 60 : 5 * 60;
-    const current = t.minutes * 60 + t.seconds;
-    const offset = 283 - (current / total) * 283;
-    const progressEl = document.getElementById('timer-progress');
-    if (progressEl) progressEl.style.strokeDashoffset = offset;
-  },
-
-  timerFinished() {
-    const t = this.timer;
-    clearInterval(t.interval); t.isRunning = false;
-    if (t.mode === 'study') { alert('Time for a break!'); t.mode = 'break'; t.minutes = 5; }
-    else { alert('Break over!'); t.mode = 'study'; t.minutes = 25; }
-    t.seconds = 0;
-    const labelEl = document.getElementById('timer-label');
-    if (labelEl) labelEl.textContent = t.mode === 'study' ? 'Study Time' : 'Break Time';
-    const btnEl = document.getElementById('timer-start-btn');
-    if (btnEl) btnEl.textContent = 'Start';
-    this.updateTimerUI();
-  },
-
-  resetTimer() {
-    const t = this.timer;
-    clearInterval(t.interval); t.isRunning = false; t.mode = 'study'; t.minutes = 25; t.seconds = 0;
-    const labelEl = document.getElementById('timer-label');
-    if (labelEl) labelEl.textContent = 'Study Time';
-    const btnEl = document.getElementById('timer-start-btn');
-    if (btnEl) btnEl.textContent = 'Start';
-    this.updateTimerUI();
+  showToast(message, type = 'info') {
+    window.dispatchEvent(new CustomEvent('woni-toast', { detail: { message, type } }));
   },
 
   exportSessionPDF() {
@@ -1615,9 +1577,9 @@ const app = {
           if (data[store]) { for (const item of data[store]) { await this.dbAdd(store, item); } }
         }
         if (data.userExams) { this.state.userExams = data.userExams; localStorage.setItem('woni_user_exams', JSON.stringify(data.userExams)); }
-        alert('Data imported successfully!'); location.reload();
+        this.showToast('Data imported successfully!', 'success'); setTimeout(() => location.reload(), 1500);
       }
-    } catch (e) { alert('Import failed: ' + e.message); }
+    } catch (e) { this.showToast('Import failed: ' + e.message, 'error'); }
   },
 
   clearAllData() {

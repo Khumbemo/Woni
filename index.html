@@ -277,26 +277,7 @@
 
         <!-- Focus Timer View (Overlay) -->
         <div id="focus-timer-overlay" class="overlay hidden">
-          <div class="timer-container">
-            <header class="session-header">
-              <span>Focus Session</span>
-              <button class="close-session" onclick="app.hideSubView('focus-timer-overlay')">✕</button>
-            </header>
-            <div class="timer-display">
-              <div class="timer-circle">
-                <svg class="timer-svg" viewBox="0 0 100 100">
-                  <circle class="timer-track" cx="50" cy="50" r="45"></circle>
-                  <circle id="timer-progress" class="timer-fill" cx="50" cy="50" r="45"></circle>
-                </svg>
-                <div id="timer-time" class="timer-time">25:00</div>
-              </div>
-              <div id="timer-label" class="timer-label">Study Time</div>
-            </div>
-            <div class="timer-controls">
-              <button id="timer-start-btn" class="btn accent" onclick="app.toggleTimer()">Start</button>
-              <button class="btn" onclick="app.resetTimer()">Reset</button>
-            </div>
-          </div>
+          <div id="focus-timer-mount"></div>
         </div>
 
         <!-- Active Mock Test / Flashcards View (Overlay) -->
@@ -467,6 +448,7 @@
     </nav>
 
   </div>
+  <div id="toast-mount"></div>
 
   <script type="module" src="/src/app.js"></script>
   <script>
