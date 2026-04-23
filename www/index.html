@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Woni — AI Exam Intelligence</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>"/>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <link rel="manifest" href="/manifest.json" />
-  <script type="module" crossorigin src="/assets/index-BE1IxF72.js"></script>
+  <script type="module" crossorigin src="/assets/index-r9i7jLeY.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/index-D0KZDIi1.css">
-</head>
+<link rel="manifest" href="/manifest.webmanifest"></head>
 <body class="dark-theme">
   <!-- Science Background -->
   <canvas id="particle-canvas" class="particle-bg"></canvas>
@@ -352,21 +352,20 @@
                  <span>API Key</span>
                  <p class="muted">Groq API Key for analysis</p>
                </div>
-               <input type="password" id="api-key-input" placeholder="gsk_...">
+               <input type="password" id="api-key-input" placeholder="Optional for first 5 uses">
                <button class="btn small" onclick="app.saveApiKey()">Save</button>
-               <p id="api-key-info" class="muted-mini" style="width: 100%; margin-top: 5px;"></p>
+               <p id="api-key-info" class="muted-mini" style="width: 100%; margin-top: 5px;">You have free AI uses remaining.</p>
             </div>
 
             <div class="guide-container">
-              <h4><i data-lucide="help-circle"></i> How to get your API Key</h4>
+              <h4><i data-lucide="help-circle"></i> Freemium & API Keys</h4>
+              <p class="muted-mini">You get <strong>5 free AI analyses</strong>. After that, you'll need your own free API key from Groq.</p>
               <ol class="guide-list">
                 <li>Visit <a href="https://console.groq.com/keys" target="_blank" class="accent-link">Groq Cloud Console</a>.</li>
-                <li>Sign up or Log in (it's free).</li>
+                <li>Sign up or Log in (it's completely free).</li>
                 <li>Click <strong>"Create API Key"</strong>.</li>
-                <li>Give it a name (e.g., "Woni App").</li>
                 <li>Copy the key (starts with <code>gsk_</code>) and paste it above.</li>
               </ol>
-              <p class="muted-mini">Need help? Science never settles, and neither do we. Reach out if stuck!</p>
             </div>
           </div>
 
@@ -400,6 +399,24 @@
             <div class="setting-item">
               <span class="danger">Clear All Data</span>
               <button class="btn small danger" onclick="app.clearAllData()">Reset</button>
+            </div>
+          </div>
+
+          <div class="settings-group hidden" id="admin-upload-panel">
+            <h3>Admin Cloud Upload</h3>
+            <p class="muted-mini" style="margin-bottom: 1rem;">Upload books to Firebase Storage for all users.</p>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+              <input type="text" id="admin-book-title" placeholder="Book Title (e.g. Molecular Biology)" class="w-full" style="padding: 8px;">
+              <input type="text" id="admin-book-subject" placeholder="Subject (e.g. Genetics)" class="w-full" style="padding: 8px;">
+              <select id="admin-book-exam" class="w-full" style="padding: 8px;">
+                <option value="csir_net">CSIR NET Life Science</option>
+                <option value="ugc_net_env">UGC NET Environmental Science</option>
+                <option value="gate_ls">GATE Life Science</option>
+                <option value="npsc_ncs">NPSC (NCS, NPS, NSS)</option>
+                <option value="slet_ls">SLET Life Science</option>
+              </select>
+              <input type="file" id="admin-book-file" accept="application/pdf" class="w-full" style="padding: 8px;">
+              <button class="btn" onclick="app.adminUploadBook()" id="admin-upload-btn" style="margin-top: 0.5rem;">Upload to Cloud</button>
             </div>
           </div>
         </div>
