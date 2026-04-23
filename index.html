@@ -399,6 +399,24 @@
               <button class="btn small danger" onclick="app.clearAllData()">Reset</button>
             </div>
           </div>
+
+          <div class="settings-group hidden" id="admin-upload-panel">
+            <h3>Admin Cloud Upload</h3>
+            <p class="muted-mini" style="margin-bottom: 1rem;">Upload books to Firebase Storage for all users.</p>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+              <input type="text" id="admin-book-title" placeholder="Book Title (e.g. Molecular Biology)" class="w-full" style="padding: 8px;">
+              <input type="text" id="admin-book-subject" placeholder="Subject (e.g. Genetics)" class="w-full" style="padding: 8px;">
+              <select id="admin-book-exam" class="w-full" style="padding: 8px;">
+                <option value="csir_net">CSIR NET Life Science</option>
+                <option value="ugc_net_env">UGC NET Environmental Science</option>
+                <option value="gate_ls">GATE Life Science</option>
+                <option value="npsc_ncs">NPSC (NCS, NPS, NSS)</option>
+                <option value="slet_ls">SLET Life Science</option>
+              </select>
+              <input type="file" id="admin-book-file" accept="application/pdf" class="w-full" style="padding: 8px;">
+              <button class="btn" onclick="app.adminUploadBook()" id="admin-upload-btn" style="margin-top: 0.5rem;">Upload to Cloud</button>
+            </div>
+          </div>
         </div>
       </section>
 

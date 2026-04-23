@@ -14,6 +14,12 @@ import Chart from 'chart.js/auto';
 import { createIcons, icons } from 'lucide';
 import firebase from 'firebase/compat/app';
 import './index.css';
+import { registerSW } from 'virtual:pwa-register';
+
+// Register PWA Service Worker
+if ('serviceWorker' in navigator) {
+  registerSW({ immediate: true });
+}
 
 const app = {
   ALLOWED_EXAMS,
@@ -517,14 +523,39 @@ const app = {
     if (!container) return;
 
     const examId = this.state.activeLibExam;
-    const curated = this.CURATED_RESOURCES[examId] || {};
+    // Clone so we don't mutate the original config when pushing cloud books
+    const curated = JSON.parse(JSON.stringify(this.CURATED_RESOURCES[examId] || {}));
+    
+    container.innerHTML = '<div style="text-align:center; padding:2rem;"><div class="loader"></div></div>';
+    
     const userBooks = await this.dbGetFromIndex('library', 'exam', examId);
+    let cloudBooks = [];
+
+    // Fetch from Firestore
+    try {
+      if (this.db) {
+        const snapshot = await this.db.collection('library_books')
+          .where('exam', '==', examId)
+          .get();
+        snapshot.forEach(doc => {
+          cloudBooks.push(doc.data());
+        });
+      }
+    } catch(e) {
+      console.error("Failed to fetch cloud books", e);
+    }
 
     // Group user books by subject
     const groupedUser = {};
     userBooks.forEach(b => {
       if (!groupedUser[b.subject]) groupedUser[b.subject] = [];
-      groupedUser[b.subject].push(b);
+      groupedUser[b.subject].push({ title: b.name, id: b.id, isLocal: true });
+    });
+
+    // Group cloud books into curated
+    cloudBooks.forEach(b => {
+      if (!curated[b.subject]) curated[b.subject] = [];
+      curated[b.subject].push({ title: b.title, url: b.url, isCloud: true });
     });
 
     // Merge subjects
@@ -541,14 +572,14 @@ const app = {
         <div class="bookshelf">
           ${(curated[sub] || []).map(b => `
             <div class="book-card" onclick="window.open('${b.url}', '_blank')">
-              <div class="book-icon"><i data-lucide="external-link"></i></div>
+              <div class="book-icon"><i data-lucide="${b.isCloud ? 'cloud' : 'external-link'}"></i></div>
               <span class="book-title">${b.title}</span>
             </div>
           `).join('')}
           ${(groupedUser[sub] || []).map(b => `
             <div class="book-card" onclick="app.openLocalBook(${b.id})">
               <div class="book-icon"><i data-lucide="file-text"></i></div>
-              <span class="book-title">${b.name}</span>
+              <span class="book-title">${b.title}</span>
             </div>
           `).join('')}
         </div>
@@ -598,6 +629,64 @@ const app = {
       if (win) {
         win.document.write(`<iframe src="${book.data}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
       }
+    }
+  },
+
+  async adminUploadBook() {
+    const title = document.getElementById('admin-book-title').value.trim();
+    const subject = document.getElementById('admin-book-subject').value.trim();
+    const exam = document.getElementById('admin-book-exam').value;
+    const fileInput = document.getElementById('admin-book-file');
+    const file = fileInput.files[0];
+
+    if (!title || !subject || !file) {
+      this.showToast('Please fill all fields and select a PDF.', 'error');
+      return;
+    }
+
+    if (!this.state.user) {
+      this.showToast('You must be signed in to upload cloud books.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('admin-upload-btn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Uploading...';
+    btn.disabled = true;
+
+    try {
+      // 1. Upload to Firebase Storage
+      const storageRef = this.storage.ref(`library_books/${exam}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`);
+      const snapshot = await storageRef.put(file);
+      const downloadURL = await snapshot.ref.getDownloadURL();
+
+      // 2. Save metadata to Firestore
+      await this.db.collection('library_books').add({
+        title,
+        subject,
+        exam,
+        url: downloadURL,
+        addedBy: this.state.user.uid,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      this.showToast('Book uploaded successfully to cloud!', 'success');
+      
+      // Clear inputs
+      document.getElementById('admin-book-title').value = '';
+      document.getElementById('admin-book-subject').value = '';
+      fileInput.value = '';
+      
+      // Refresh if we are looking at the library
+      if (this.state.currentView === 'library') {
+        this.renderLibraryContent();
+      }
+    } catch (e) {
+      console.error(e);
+      this.showToast('Upload failed: ' + e.message, 'error');
+    } finally {
+      btn.textContent = originalText;
+      btn.disabled = false;
     }
   },
 

@@ -26,6 +26,7 @@ export const authMixin = {
     const emailEl = document.getElementById('user-email-display');
     const authBtn = document.getElementById('auth-action-btn');
     const syncContainer = document.getElementById('sync-now-container');
+    const adminPanel = document.getElementById('admin-upload-panel');
 
     if (this.state.user) {
       if (statusEl) statusEl.textContent = 'Cloud Sync Active';
@@ -35,6 +36,7 @@ export const authMixin = {
         authBtn.onclick = () => this.signOut();
       }
       if (syncContainer) syncContainer.classList.remove('hidden');
+      if (adminPanel) adminPanel.classList.remove('hidden');
     } else {
       if (statusEl) statusEl.textContent = 'Cloud Sync (Offline)';
       if (emailEl) emailEl.textContent = 'Not signed in';
@@ -43,6 +45,7 @@ export const authMixin = {
         authBtn.onclick = () => this.showAuth();
       }
       if (syncContainer) syncContainer.classList.add('hidden');
+      if (adminPanel) adminPanel.classList.add('hidden');
     }
   },
 
