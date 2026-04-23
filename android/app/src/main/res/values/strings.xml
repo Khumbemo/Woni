@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Woni</string>
+    <string name="title_activity_main">Woni</string>
+    <string name="package_name">app.woni.exam</string>
+    <string name="custom_url_scheme">app.woni.exam</string>
+</resources>

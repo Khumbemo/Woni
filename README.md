@@ -6,6 +6,8 @@ Woni is a specialized exam preparation app designed for students targeting **CSI
 
 - **Multi-Exam Support**: Choose from CSIR NET, GATE Life Science, SLET, or NPSC CCE.
 - **Offline-First Storage**: All your papers, questions, and progress are stored locally using IndexedDB.
+- **Cloud Sync & Authentication**: Securely back up your data to Firebase and sync across devices.
+- **Guest Mode**: Use the app entirely offline without creating an account.
 - **AI-Powered Analysis**: Upload PDFs, images, or text files to extract questions and identify important topics via Groq API.
 - **Mock Tests**: Generate custom tests based on specific exams and topics.
 - **Spaced Repetition Flashcards**: Auto-generated flashcards with an SM-2 algorithm to optimize retention.
@@ -40,6 +42,16 @@ Woni is a specialized exam preparation app designed for students targeting **CSI
 3. Open your browser and navigate to `http://localhost:8080`.
 
 4. Go to **Settings**, paste your **Groq API Key**, and click **Save**.
+
+### ☁️ Firebase Setup (Cloud Sync)
+
+To enable Cloud Sync, you'll need a Firebase project:
+
+1. Create a project in the [Firebase Console](https://console.firebase.google.com/).
+2. Enable **Authentication** (Email/Password provider).
+3. Create a **Firestore Database** in test mode or with appropriate security rules.
+4. Add a Web App to your project and copy the `firebaseConfig` object.
+5. Paste your configuration into the `initFirebase()` function in `app.js`.
 
 ## 📱 Mobile Deployment (Capacitor)
 
