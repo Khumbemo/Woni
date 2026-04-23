@@ -1,0 +1,7 @@
+[
+  {
+    "id": "paper_001",
+    "predictedTopics": ["Cell Biology", "Genetics", "Molecular Biology"],
+    "truthTopics": ["Cell Biology", "Genetics", "Biochemistry"]
+  }
+]

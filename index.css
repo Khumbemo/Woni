@@ -227,6 +227,141 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); font
 .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
 .progress-status { font-size: 11px; font-family: var(--mono); color: var(--muted); text-align: center; }
 
+.analysis-insights {
+  margin-top: 18px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.analysis-insights-head h3 { font-family: var(--serif); font-size: 18px; margin-bottom: 4px; }
+.analysis-insights-head p { color: var(--muted); font-size: 12px; margin-bottom: 14px; }
+.analysis-topics-list { display: grid; gap: 12px; }
+.topic-note-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface2);
+  padding: 12px;
+}
+.topic-note-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+.topic-title { font-weight: 700; }
+.topic-meta { font-size: 11px; color: var(--muted); }
+.topic-note-input {
+  width: 100%;
+  min-height: 72px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 10px;
+  font-family: var(--sans);
+  resize: vertical;
+}
+.topic-note-actions { margin-top: 8px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.topic-note-saved { font-size: 11px; color: var(--green); }
+
+.analysis-assistant {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  min-height: 68vh;
+  display: flex;
+  flex-direction: column;
+}
+.analysis-chat-log {
+  flex: 1;
+  min-height: 50vh;
+  max-height: none;
+  overflow-y: auto;
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-right: 2px;
+}
+.analysis-chat-msg {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.analysis-chat-msg.user {
+  background: rgba(249, 115, 22, 0.12);
+  border-color: rgba(249, 115, 22, 0.35);
+}
+.analysis-chat-msg.ai { background: var(--surface2); }
+.analysis-chat-input-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  padding-top: 8px;
+}
+.analysis-chat-input-row input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 12px 14px;
+  font-family: var(--sans);
+  min-height: 46px;
+}
+
+.analysis-review {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.analysis-review-summary {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.analysis-review-list {
+  display: grid;
+  gap: 10px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+.analysis-review-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--surface2);
+}
+.analysis-review-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.analysis-review-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+.analysis-review-meta {
+  font-size: 11px;
+  color: var(--muted);
+}
+.analysis-review-issues {
+  font-size: 11px;
+  color: var(--gold);
+}
+.analysis-review-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* Practice Cards */
 .practice-options { display: grid; gap: 16px; }
 .practice-card {
