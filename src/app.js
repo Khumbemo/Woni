@@ -13,6 +13,7 @@ import { jsPDF } from 'jspdf';
 import Chart from 'chart.js/auto';
 import { createIcons, icons } from 'lucide';
 import firebase from 'firebase/compat/app';
+import './index.css';
 
 const app = {
   ALLOWED_EXAMS,
