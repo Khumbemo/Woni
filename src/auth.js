@@ -7,12 +7,12 @@ export const authMixin = {
   initFirebase() {
     // Replace with your actual Firebase config
     const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT_ID.appspot.com",
-      messagingSenderId: "YOUR_MESSAGING_ID",
-      appId: "YOUR_APP_ID"
+      apiKey: "AIzaSyBCc6JdOtYhgvINHgdNHyIMVBw_8v1INgk",
+      authDomain: "woni-f6a2a.firebaseapp.com",
+      projectId: "woni-f6a2a",
+      storageBucket: "woni-f6a2a.firebasestorage.app",
+      messagingSenderId: "802707408926",
+      appId: "1:802707408926:android:f561524d07bee95524c60f"
     };
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
