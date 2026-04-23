@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npx playwright test",
+    "test:report": "npx playwright show-report"
   },
   "repository": {
     "type": "git",
@@ -28,6 +29,7 @@
     "preact": "^10.29.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "vite": "^8.0.10"
   }
 }
