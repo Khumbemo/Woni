@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "802707408926",
+    "project_id": "woni-f6a2a",
+    "storage_bucket": "woni-f6a2a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:802707408926:android:f561524d07bee95524c60f",
+        "android_client_info": {
+          "package_name": "com.khumbemo.woni"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBCc6JdOtYhgvINHgdNHyIMVBw_8v1INgk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
