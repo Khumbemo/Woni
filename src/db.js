@@ -1,13 +1,10 @@
+import * as idb from 'idb';
+
 export const dbMixin = {
   async initDB() {
     return new Promise((resolve) => {
       const attemptInit = async () => {
         try {
-          if (typeof idb === 'undefined') {
-            console.error('idb library not loaded. Retrying in 1s...');
-            setTimeout(attemptInit, 1000);
-            return;
-          }
           this.state.db = await idb.openDB('woni_db', 3, {
             upgrade(db, oldVersion, newVersion) {
               // Papers store

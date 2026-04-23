@@ -8,6 +8,13 @@ import { dbMixin } from './db.js';
 import { h, render } from 'preact';
 import Toast from './components/Toast.jsx';
 import FocusTimer from './components/FocusTimer.jsx';
+import * as pdfjsLib from 'pdfjs-dist';
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.js?url';
+import { jsPDF } from 'jspdf';
+import { createWorker } from 'tesseract.js';
+import Chart from 'chart.js/auto';
+import { createIcons, icons } from 'lucide';
+import firebase from 'firebase/compat/app';
 
 const app = {
   ALLOWED_EXAMS,
@@ -224,9 +231,9 @@ const app = {
   },
 
   updateLucide() {
-    if (window.lucide) {
-      lucide.createIcons();
-    }
+    try {
+      createIcons({ icons });
+    } catch(e) {}
   },
 
   initParticles() {
@@ -1103,7 +1110,7 @@ const app = {
   },
 
   async extractImageText(file) {
-    const worker = await Tesseract.createWorker('eng');
+    const worker = await createWorker('eng');
     const result = await worker.recognize(file);
     await worker.terminate();
     return result.data.text;
@@ -1495,7 +1502,7 @@ const app = {
   exportSessionPDF() {
     const s = this.state.session;
     if (!s || !s.data) return;
-    const { jsPDF } = window.jspdf;
+    // Using jsPDF imported from npm
     const doc = new jsPDF();
     doc.setFontSize(20); doc.text(`Woni ${s.title} Results`, 20, 20);
     doc.setFontSize(12); doc.text(`Date: ${new Date().toLocaleString()}`, 20, 30);
@@ -1594,9 +1601,7 @@ const app = {
 Object.assign(app, authMixin, dbMixin);
 
 // Configure PDF.js Worker
-if (window.pdfjsLib) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-}
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 // Expose app to global scope for inline HTML handlers
 window.app = app;
