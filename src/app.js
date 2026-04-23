@@ -997,9 +997,14 @@ const app = {
 
   async startAnalysis() {
     if (!this.state.apiKey) {
-      alert('Please save your Groq API Key in Settings first.');
-      this.showView('settings');
-      return;
+      const freemiumCount = parseInt(localStorage.getItem('woni_freemium_count') || '0', 10);
+      if (freemiumCount >= 5) {
+        alert('Freemium limit reached (5/5). Please save your Groq API Key in Settings to continue.');
+        this.showView('settings');
+        return;
+      } else {
+        console.log(`Using Freemium Tier (${freemiumCount + 1}/5)`);
+      }
     }
 
     const btn = document.getElementById('start-analysis-btn');
@@ -1149,25 +1154,61 @@ const app = {
     return { questions, topics };
   },
 
+  getProxyUrl() {
+    return 'https://woni-ai-proxy.khumbemo.workers.dev/chat'; // Placeholder URL
+  },
+
+  incrementFreemium() {
+    if (this.state.apiKey) return;
+    const count = parseInt(localStorage.getItem('woni_freemium_count') || '0', 10);
+    localStorage.setItem('woni_freemium_count', (count + 1).toString());
+    
+    // Update setting UI if visible
+    this.updateSettingsUI();
+  },
+
+  updateSettingsUI() {
+    // A helper to show freemium status in settings
+    const info = document.getElementById('api-key-info');
+    if (info && !this.state.apiKey) {
+       const count = parseInt(localStorage.getItem('woni_freemium_count') || '0', 10);
+       info.textContent = `Freemium Analyses Used: ${count}/5`;
+    }
+  },
+
   async groqCall(prompt) {
-    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const useProxy = !this.state.apiKey;
+    const url = useProxy ? this.getProxyUrl() : 'https://api.groq.com/openai/v1/chat/completions';
+    const headers = { 'Content-Type': 'application/json' };
+    if (!useProxy) headers['Authorization'] = `Bearer ${this.state.apiKey}`;
+
+    const resp = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.state.apiKey}` },
+      headers,
       body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: prompt }], response_format: { type: "json_object" } }),
     });
-    if (!resp.ok) throw new Error(`Groq API Error: ${resp.status}`);
+    
+    if (!resp.ok) throw new Error(useProxy ? "Proxy Error: Make sure your worker is deployed." : `Groq API Error: ${resp.status}`);
     const data = await resp.json();
+    this.incrementFreemium();
     return data.choices[0].message.content;
   },
 
   async groqTextCall(prompt) {
-    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const useProxy = !this.state.apiKey;
+    const url = useProxy ? this.getProxyUrl() : 'https://api.groq.com/openai/v1/chat/completions';
+    const headers = { 'Content-Type': 'application/json' };
+    if (!useProxy) headers['Authorization'] = `Bearer ${this.state.apiKey}`;
+
+    const resp = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.state.apiKey}` },
+      headers,
       body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: prompt }] }),
     });
-    if (!resp.ok) throw new Error(`Groq API Error: ${resp.status}`);
+    
+    if (!resp.ok) throw new Error(useProxy ? "Proxy Error: Make sure your worker is deployed." : `Groq API Error: ${resp.status}`);
     const data = await resp.json();
+    this.incrementFreemium();
     return (data.choices?.[0]?.message?.content || '').trim();
   },
 
