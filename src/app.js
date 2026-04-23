@@ -2,7 +2,15 @@
  * Woni — Core Application Logic (SPA)
  */
 
+import { ALLOWED_EXAMS, EXAM_ID_MIGRATION, CURATED_RESOURCES } from './config.js';
+import { authMixin } from './auth.js';
+import { dbMixin } from './db.js';
+
 const app = {
+  ALLOWED_EXAMS,
+  EXAM_ID_MIGRATION,
+  CURATED_RESOURCES,
+
   // --- State ---
   state: {
     userExams: [],
@@ -55,185 +63,19 @@ const app = {
     });
   },
 
-  initFirebase() {
-    // Replace with your actual Firebase config
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT_ID.appspot.com",
-      messagingSenderId: "YOUR_MESSAGING_ID",
-      appId: "YOUR_APP_ID"
-    };
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-    }
-    this.db = firebase.firestore();
-    this.storage = firebase.storage();
-  },
-
-  updateAuthUI() {
-    const statusEl = document.getElementById('sync-status');
-    const emailEl = document.getElementById('user-email-display');
-    const authBtn = document.getElementById('auth-action-btn');
-    const syncContainer = document.getElementById('sync-now-container');
-
-    if (this.state.user) {
-      if (statusEl) statusEl.textContent = 'Cloud Sync Active';
-      if (emailEl) emailEl.textContent = this.state.user.email;
-      if (authBtn) {
-        authBtn.textContent = 'Sign Out';
-        authBtn.onclick = () => this.signOut();
-      }
-      if (syncContainer) syncContainer.classList.remove('hidden');
-    } else {
-      if (statusEl) statusEl.textContent = 'Cloud Sync (Offline)';
-      if (emailEl) emailEl.textContent = 'Not signed in';
-      if (authBtn) {
-        authBtn.textContent = 'Sign In';
-        authBtn.onclick = () => this.showAuth();
-      }
-      if (syncContainer) syncContainer.classList.add('hidden');
-    }
-  },
-
-  showAuth() {
-    document.getElementById('auth-overlay').classList.remove('hidden');
-  },
-
-  async handleAuth() {
-    const email = document.getElementById('auth-email').value;
-    const password = document.getElementById('auth-password').value;
-    const btn = document.getElementById('auth-submit-btn');
-
-    if (!email || !password) {
-      alert('Please enter email and password');
-      return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = 'Processing...';
-
-    try {
-      // Simple logic: try to sign in, if fails, try to sign up
-      try {
-        await firebase.auth().signInWithEmailAndPassword(email, password);
-      } catch (e) {
-        if (e.code === 'auth/user-not-found') {
-          await firebase.auth().createUserWithEmailAndPassword(email, password);
-        } else {
-          throw e;
-        }
-      }
-      localStorage.removeItem('woni_guest_mode');
-    } catch (e) {
-      alert(e.message);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Sign In / Sign Up';
-    }
-  },
-
-  signOut() {
-    firebase.auth().signOut().then(() => {
-      localStorage.removeItem('woni_guest_mode');
-      location.reload();
-    });
-  },
-
-  continueAsGuest() {
-    localStorage.setItem('woni_guest_mode', 'true');
-    document.getElementById('auth-overlay').classList.add('hidden');
-    this.loadState();
-    this.updateDashboard();
-  },
-
-  async initDB() {
-    return new Promise((resolve) => {
-      const attemptInit = async () => {
-        try {
-          if (typeof idb === 'undefined') {
-            console.error('idb library not loaded. Retrying in 1s...');
-            setTimeout(attemptInit, 1000);
-            return;
-          }
-          this.state.db = await idb.openDB('woni_db', 3, {
-            upgrade(db, oldVersion, newVersion) {
-              // Papers store
-              if (!db.objectStoreNames.contains('papers')) {
-                const pStore = db.createObjectStore('papers', { keyPath: 'id', autoIncrement: true });
-                pStore.createIndex('exam', 'exam');
-              }
-              // Questions store
-              if (!db.objectStoreNames.contains('questions')) {
-                const qStore = db.createObjectStore('questions', { keyPath: 'id', autoIncrement: true });
-                qStore.createIndex('exam', 'exam');
-                qStore.createIndex('topic', 'topic');
-                qStore.createIndex('paperId', 'paperId');
-              }
-              // Flashcards store
-              if (!db.objectStoreNames.contains('flashcards')) {
-                const fStore = db.createObjectStore('flashcards', { keyPath: 'id', autoIncrement: true });
-                fStore.createIndex('nextReview', 'nextReview');
-                fStore.createIndex('topic', 'topic');
-              }
-              // Progress store
-              if (!db.objectStoreNames.contains('progress')) {
-                db.createObjectStore('progress', { keyPath: 'id' });
-              }
-              // Topics store (to store topic analysis)
-              if (!db.objectStoreNames.contains('topics')) {
-                const tStore = db.createObjectStore('topics', { keyPath: 'id' }); // id: exam_topicName
-                tStore.createIndex('exam', 'exam');
-              }
-              // Mock tests store
-              if (!db.objectStoreNames.contains('mock_tests')) {
-                const mStore = db.createObjectStore('mock_tests', { keyPath: 'id', autoIncrement: true });
-                mStore.createIndex('exam', 'exam');
-              }
-              // Library store
-              if (!db.objectStoreNames.contains('library')) {
-                const lStore = db.createObjectStore('library', { keyPath: 'id', autoIncrement: true });
-                lStore.createIndex('exam', 'exam');
-                lStore.createIndex('subject', 'subject');
-              }
-            },
-          });
-          console.log('IndexedDB initialized');
-          resolve();
-        } catch (e) {
-          console.error('DB init failed', e);
-          setTimeout(attemptInit, 2000);
-        }
-      };
-      attemptInit();
-    });
-  },
-
-  async dbAdd(storeName, data) {
-    return this.state.db.add(storeName, data);
-  },
-  async dbPut(storeName, data) {
-    return this.state.db.put(storeName, data);
-  },
-  async dbGet(storeName, key) {
-    return this.state.db.get(storeName, key);
-  },
-  async dbGetAll(storeName) {
-    return this.state.db.getAll(storeName);
-  },
-  async dbDelete(storeName, key) {
-    return this.state.db.delete(storeName, key);
-  },
-  async dbGetFromIndex(storeName, indexName, value) {
-    return this.state.db.getAllFromIndex(storeName, indexName, value);
-  },
+  // --- Auth and DB methods imported via mixins ---
 
   loadState() {
     const savedExams = localStorage.getItem('woni_user_exams');
     if (savedExams) {
-      this.state.userExams = JSON.parse(savedExams);
+      const parsed = JSON.parse(savedExams)
+        .map(ex => ({ ...ex, id: this.EXAM_ID_MIGRATION[ex.id] || ex.id }))
+        .filter(ex => this.ALLOWED_EXAMS.includes(ex.id));
+      this.state.userExams = parsed;
       this.state.activeExam = this.state.userExams[0] || null;
+      if (parsed.length > 0) {
+        localStorage.setItem('woni_user_exams', JSON.stringify(parsed));
+      }
       this.updateActiveExamBadge();
     }
 
@@ -318,6 +160,16 @@ const app = {
     }
 
     document.getElementById('start-analysis-btn').addEventListener('click', () => this.startAnalysis());
+    const chatSend = document.getElementById('analysis-chat-send');
+    const chatInput = document.getElementById('analysis-chat-input');
+    const saveReviewedBtn = document.getElementById('save-reviewed-analysis-btn');
+    if (chatSend) chatSend.addEventListener('click', () => this.askAnalysisAssistant());
+    if (chatInput) {
+      chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') this.askAnalysisAssistant();
+      });
+    }
+    if (saveReviewedBtn) saveReviewedBtn.addEventListener('click', () => this.saveReviewedAnalysis());
   },
 
   initNavigation() {
@@ -477,17 +329,18 @@ const app = {
     document.querySelectorAll('.exam-checkbox input:checked').forEach(input => {
       selected.push({ id: input.value, name: input.dataset.name });
     });
+    const filtered = selected.filter(ex => this.ALLOWED_EXAMS.includes(ex.id));
 
-    if (selected.length === 0) {
+    if (filtered.length === 0) {
       alert('Please select at least one exam.');
       return;
     }
 
-    this.state.userExams = selected;
-    this.state.activeExam = selected[0];
+    this.state.userExams = filtered;
+    this.state.activeExam = filtered[0];
     this.state.isFirstRun = false;
 
-    localStorage.setItem('woni_user_exams', JSON.stringify(selected));
+    localStorage.setItem('woni_user_exams', JSON.stringify(filtered));
     localStorage.setItem('woni_setup_done', 'true');
 
     this.updateActiveExamBadge();
@@ -625,25 +478,7 @@ const app = {
   },
 
   // --- Library Logic ---
-  CURATED_RESOURCES: {
-    csir_net: {
-      "Biochemistry": [
-        { title: "Principles of Biochemistry", author: "Lehninger", url: "https://archive.org/details/LehningerPrinciplesOfBiochemistry" },
-        { title: "Biochemistry Notes", author: "Open Library", url: "https://openlibrary.org/subjects/biochemistry" }
-      ],
-      "Molecular Biology": [
-        { title: "Molecular Biology of the Cell", author: "Alberts", url: "https://www.ncbi.nlm.nih.gov/books/NBK21054/" }
-      ]
-    },
-    npsc_cce: {
-      "Nagaland History": [
-        { title: "A Brief History of Nagaland", author: "State Portal", url: "https://www.nagaland.gov.in/portal/portal/StatePortal/Government/AboutNagaland" }
-      ],
-      "Indian Polity": [
-        { title: "Indian Polity", author: "Laxmikanth (Reference)", url: "https://archive.org/details/indianpolity5thedition" }
-      ]
-    }
-  },
+  // CURATED_RESOURCES imported from config.js
 
   updateLibraryView() {
     const tabs = document.getElementById('lib-exam-tabs');
@@ -817,11 +652,307 @@ const app = {
 
   // --- Upload & Analysis Logic ---
   updateUploadView() {
-    const select = document.getElementById('upload-exam-select');
-    if (select) {
-      select.innerHTML = this.state.userExams.map(ex => `<option value="${ex.id}">${ex.name}</option>`).join('');
-    }
     this.renderFileList();
+    this.renderAnalysisAssistant();
+  },
+
+  escapeHtml(text) {
+    return String(text ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  },
+
+  async getImportantTopics(examId) {
+    if (!examId) return [];
+    const topics = await this.dbGetFromIndex('topics', 'exam', examId);
+    const important = topics
+      .filter(t => (t.frequency || 0) >= 40 || ['high', 'med'].includes((t.priority || '').toLowerCase()))
+      .sort((a, b) => (b.frequency || 0) - (a.frequency || 0))
+      .slice(0, 6);
+    if (important.length > 0) return important;
+    return topics
+      .sort((a, b) => (b.frequency || 0) - (a.frequency || 0))
+      .slice(0, 6);
+  },
+
+  makeFallbackTopics(questions = []) {
+    const map = {};
+    for (const q of questions) {
+      const topicName = (q.topic || 'General').trim();
+      if (!map[topicName]) {
+        map[topicName] = { count: 0, examples: [] };
+      }
+      map[topicName].count++;
+      if (map[topicName].examples.length < 2) map[topicName].examples.push(q.text || '');
+    }
+    const total = questions.length || 1;
+    return Object.entries(map).map(([name, info]) => {
+      const frequency = Math.round((info.count / total) * 100);
+      const priority = frequency >= 35 ? 'high' : frequency >= 20 ? 'med' : 'low';
+      return {
+        name,
+        frequency,
+        priority,
+        focusReason: `Appears in ${info.count} extracted question(s).`,
+        note: `Focus on ${name}: revise core definitions, standard question patterns, and common mistakes.`,
+      };
+    }).sort((a, b) => b.frequency - a.frequency);
+  },
+
+  renderAnalysisAssistant() {
+    const wrapper = document.getElementById('analysis-assistant');
+    const log = document.getElementById('analysis-chat-log');
+    if (!wrapper || !log) return;
+    const ctx = this.state.latestAnalysisContext;
+    if (!ctx) {
+      wrapper.classList.add('hidden');
+      log.innerHTML = '';
+      return;
+    }
+    wrapper.classList.remove('hidden');
+    if (!ctx.chat || ctx.chat.length === 0) {
+      ctx.chat = [{
+        role: 'ai',
+        text: `Analysis loaded for ${ctx.examId}. Ask me anything about priority topics, likely repeated questions, or how to revise effectively.`,
+      }];
+    }
+    log.innerHTML = ctx.chat.map(m => `
+      <div class="analysis-chat-msg ${m.role === 'user' ? 'user' : 'ai'}">${this.escapeHtml(m.text)}</div>
+    `).join('');
+    log.scrollTop = log.scrollHeight;
+  },
+
+  async askAnalysisAssistant() {
+    const input = document.getElementById('analysis-chat-input');
+    const sendBtn = document.getElementById('analysis-chat-send');
+    if (!input) return;
+    const question = input.value.trim();
+    if (!question) return;
+    if (!this.state.latestAnalysisContext) {
+      alert('Run analysis first to ask topic-specific questions.');
+      return;
+    }
+    input.value = '';
+    if (sendBtn) sendBtn.disabled = true;
+    const ctx = this.state.latestAnalysisContext;
+    ctx.chat = ctx.chat || [];
+    ctx.chat.push({ role: 'user', text: question });
+    this.renderAnalysisAssistant();
+
+    try {
+      const prompt = `You are Woni study assistant. Use this analysis context to answer the student clearly.\nExam: ${ctx.examId}\nTop topics: ${ctx.topics.map(t => `${t.name} (${t.frequency}%/${t.priority})`).join(', ')}\nExample questions: ${ctx.questions.map(q => `- ${q}`).join('\n')}\n\nStudent question: ${question}\n\nGive concise practical answer with 3-6 bullets.`;
+      const answer = await this.groqTextCall(prompt);
+      ctx.chat.push({ role: 'ai', text: answer || 'I could not generate a response right now. Please try again.' });
+    } catch (e) {
+      ctx.chat.push({ role: 'ai', text: `I hit an error while answering: ${e.message}` });
+    } finally {
+      if (sendBtn) sendBtn.disabled = false;
+      this.renderAnalysisAssistant();
+    }
+  },
+
+  validateQuestion(question) {
+    const issues = [];
+    const options = Array.isArray(question.options) ? question.options.filter(Boolean) : [];
+    const text = String(question.text || '').trim();
+    const answer = String(question.answer || '').trim();
+    const explanation = String(question.explanation || '').trim();
+
+    if (text.length < 12) issues.push('Question text too short');
+    if (options.length < 2) issues.push('At least 2 options required');
+    if (!explanation) issues.push('Explanation missing');
+
+    const answerUpper = answer.toUpperCase();
+    const byLetter = /^[A-Z]$/.test(answerUpper)
+      ? options[answerUpper.charCodeAt(0) - 65]
+      : null;
+    const answerMatchesOption = options.some(opt => String(opt).trim().toLowerCase() === answer.toLowerCase());
+    if (!answer || (!byLetter && !answerMatchesOption && !/^[A-Z]$/.test(answerUpper))) {
+      issues.push('Answer not aligned with options');
+    }
+
+    let confidence = typeof question.confidence === 'number' ? question.confidence : 0.65;
+    if (issues.length === 0) confidence += 0.2;
+    if (issues.length >= 2) confidence -= 0.2;
+    confidence = Math.max(0.2, Math.min(0.98, confidence));
+
+    return { ...question, options, issues, confidence };
+  },
+
+  validateTopic(topic) {
+    const issues = [];
+    const name = String(topic.name || '').trim();
+    if (!name) issues.push('Topic name missing');
+    const frequency = Math.max(0, Math.min(100, Number(topic.frequency || 0)));
+    const priority = ['high', 'med', 'low'].includes(String(topic.priority || '').toLowerCase())
+      ? String(topic.priority).toLowerCase()
+      : (frequency >= 35 ? 'high' : frequency >= 20 ? 'med' : 'low');
+    const note = String(topic.note || '').trim()
+      || `Revise ${name || 'this topic'} with concept summary + repeated PYQ patterns.`;
+
+    let confidence = typeof topic.confidence === 'number' ? topic.confidence : 0.7;
+    if (issues.length > 0) confidence -= 0.25;
+    confidence = Math.max(0.2, Math.min(0.98, confidence));
+
+    return {
+      ...topic,
+      name,
+      frequency,
+      priority,
+      note,
+      issues,
+      confidence,
+    };
+  },
+
+  EXAM_TOPIC_GUARD: {
+    csir_net: [
+      'biochem', 'molecular', 'cell', 'genetic', 'ecology', 'evolution',
+      'plant', 'animal', 'physiology', 'immunology', 'microbiology',
+      'biotechnology', 'biostat', 'bioinformatics', 'development', 'taxonomy'
+    ],
+    gate_ls: [
+      'biochem', 'molecular', 'cell', 'genetic', 'ecology', 'evolution',
+      'plant', 'animal', 'physiology', 'microbiology', 'biotechnology'
+    ],
+    ugc_net_env: [
+      'environment', 'ecology', 'pollution', 'biodiversity', 'conservation',
+      'climate', 'sustainability', 'ecosystem', 'forest', 'wildlife'
+    ],
+    npsc_ncs: [
+      'history', 'polity', 'geography', 'economy', 'nagaland', 'current affairs', 'aptitude'
+    ],
+    slet_ls: [
+      'biochem', 'molecular', 'cell', 'genetic', 'ecology', 'evolution',
+      'plant', 'animal', 'physiology', 'immunology', 'microbiology',
+      'biotechnology', 'life science'
+    ],
+  },
+
+  isRelevantToExam(examId, topicName = '', questionText = '') {
+    const guards = this.EXAM_TOPIC_GUARD[examId];
+    if (!guards || guards.length === 0) return true;
+    const hay = `${String(topicName).toLowerCase()} ${String(questionText).toLowerCase()}`;
+    return guards.some(g => hay.includes(g));
+  },
+
+  async secondPassVerify(examId, questions, topics) {
+    try {
+      const payload = {
+        examId,
+        questions: questions.slice(0, 40),
+        topics: topics.slice(0, 20),
+      };
+      const prompt = `You are a strict exam-data validator. Fix malformed items and improve quality.\nReturn ONLY JSON with same shape:\n{"questions":[{text,options,answer,topic,difficulty,explanation,confidence}],"topics":[{name,frequency,priority,focusReason,note,confidence}]}\nInput JSON:\n${JSON.stringify(payload)}`;
+      const resp = await this.groqCall(prompt);
+      const parsed = this.parseJSON(resp);
+      return {
+        questions: Array.isArray(parsed.questions) ? parsed.questions : questions,
+        topics: Array.isArray(parsed.topics) ? parsed.topics : topics,
+      };
+    } catch (e) {
+      return { questions, topics };
+    }
+  },
+
+  renderAnalysisReview() {
+    const wrap = document.getElementById('analysis-review');
+    const summary = document.getElementById('analysis-review-summary');
+    const list = document.getElementById('analysis-review-list');
+    if (!wrap || !summary || !list) return;
+    const p = this.state.pendingAnalysis;
+    if (!p) {
+      wrap.classList.add('hidden');
+      list.innerHTML = '';
+      summary.textContent = '';
+      return;
+    }
+    wrap.classList.remove('hidden');
+    const flaggedQuestions = p.questions.filter(q => q.issues.length > 0 || q.confidence < 0.6).length;
+    const flaggedTopics = p.topics.filter(t => t.issues.length > 0 || t.confidence < 0.6).length;
+    summary.textContent = `${p.questions.length} questions, ${p.topics.length} topics · Flagged: ${flaggedQuestions + flaggedTopics}`;
+
+    const qRows = p.questions.slice(0, 8).map((q, idx) => `
+      <div class="analysis-review-item">
+        <div class="analysis-review-head">
+          <label class="analysis-review-title"><input type="checkbox" data-kind="question" data-idx="${idx}" ${q.approved ? 'checked' : ''}> Q${idx + 1}: ${this.escapeHtml((q.topic || 'General'))}</label>
+          <span class="analysis-review-meta">confidence ${(q.confidence * 100).toFixed(0)}%</span>
+        </div>
+        <div class="analysis-review-meta">${this.escapeHtml((q.text || '').slice(0, 140))}</div>
+        <div class="analysis-review-issues">${q.issues.length ? this.escapeHtml(q.issues.join(', ')) : 'No rule issues'}</div>
+      </div>
+    `).join('');
+    const tRows = p.topics.slice(0, 8).map((t, idx) => `
+      <div class="analysis-review-item">
+        <div class="analysis-review-head">
+          <label class="analysis-review-title"><input type="checkbox" data-kind="topic" data-idx="${idx}" ${t.approved ? 'checked' : ''}> Topic: ${this.escapeHtml(t.name)}</label>
+          <span class="analysis-review-meta">confidence ${(t.confidence * 100).toFixed(0)}%</span>
+        </div>
+        <div class="analysis-review-meta">Frequency ${t.frequency}% · Priority ${t.priority}</div>
+        <div class="analysis-review-issues">${t.issues.length ? this.escapeHtml(t.issues.join(', ')) : 'No rule issues'}</div>
+      </div>
+    `).join('');
+    list.innerHTML = qRows + tRows;
+    list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', (e) => {
+        const kind = e.target.dataset.kind;
+        const idx = parseInt(e.target.dataset.idx, 10);
+        if (kind === 'question' && p.questions[idx]) p.questions[idx].approved = e.target.checked;
+        if (kind === 'topic' && p.topics[idx]) p.topics[idx].approved = e.target.checked;
+      });
+    });
+  },
+
+  async saveReviewedAnalysis() {
+    const p = this.state.pendingAnalysis;
+    if (!p) return;
+    const approvedQuestions = p.questions.filter(q => q.approved);
+    const approvedTopics = p.topics.filter(t => t.approved);
+    if (approvedQuestions.length === 0 && approvedTopics.length === 0) {
+      alert('Select at least one approved item to save.');
+      return;
+    }
+    for (const q of approvedQuestions) {
+      const clean = { ...q };
+      delete clean.issues; delete clean.approved;
+      clean.exam = p.examId;
+      await this.dbAdd('questions', clean);
+      await this.dbAdd('flashcards', { questionId: null, front: clean.text, back: `Answer: ${clean.answer}\n\nExplanation: ${clean.explanation}`, topic: clean.topic, nextReview: Date.now(), interval: 0, repetition: 0, ease: 2.5 });
+    }
+    for (const t of approvedTopics) {
+      const clean = { ...t };
+      delete clean.issues; delete clean.approved;
+      clean.id = `${p.examId}_${clean.name}`;
+      clean.exam = p.examId;
+      await this.dbPut('topics', clean);
+    }
+    this.state.pendingAnalysis = null;
+    this.renderAnalysisReview();
+    await this.updateDashboard();
+    alert(`Saved ${approvedQuestions.length} questions and ${approvedTopics.length} topics to your bank.`);
+  },
+
+  runBenchmarkSuite(benchmarkSet = []) {
+    const rows = benchmarkSet.map(item => {
+      const predTopics = new Set((item.predictedTopics || []).map(t => String(t).toLowerCase()));
+      const truthTopics = new Set((item.truthTopics || []).map(t => String(t).toLowerCase()));
+      const tp = [...truthTopics].filter(t => predTopics.has(t)).length;
+      const precision = predTopics.size ? tp / predTopics.size : 0;
+      const recall = truthTopics.size ? tp / truthTopics.size : 0;
+      const f1 = (precision + recall) ? (2 * precision * recall / (precision + recall)) : 0;
+      return { id: item.id, precision, recall, f1 };
+    });
+    const avg = rows.reduce((a, r) => ({ precision: a.precision + r.precision, recall: a.recall + r.recall, f1: a.f1 + r.f1 }), { precision: 0, recall: 0, f1: 0 });
+    const n = rows.length || 1;
+    return {
+      sampleCount: rows.length,
+      average: { precision: avg.precision / n, recall: avg.recall / n, f1: avg.f1 / n },
+      rows,
+      note: 'Use this with 50-100 manually labeled papers for reliable benchmark.',
+    };
   },
 
   handleFiles(files) {
@@ -832,19 +963,22 @@ const app = {
 
     this.state.uploadFiles.push(...validFiles);
     this.renderFileList();
-    const btn = document.getElementById('start-analysis-btn');
-    if (btn) btn.disabled = this.state.uploadFiles.length === 0;
   },
 
   removeFile(index) {
     this.state.uploadFiles.splice(index, 1);
     this.renderFileList();
-    const btn = document.getElementById('start-analysis-btn');
-    if (btn) btn.disabled = this.state.uploadFiles.length === 0;
   },
 
   renderFileList() {
     const list = document.getElementById('file-list');
+    const btn = document.getElementById('start-analysis-btn');
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = this.state.uploadFiles.length > 0
+        ? `Analyze with AI (${this.state.uploadFiles.length} file${this.state.uploadFiles.length > 1 ? 's' : ''}) →`
+        : 'Analyze with AI →';
+    }
     if (list) {
       list.innerHTML = this.state.uploadFiles.map((f, i) => `
         <div class="uz-file">
@@ -872,7 +1006,20 @@ const app = {
     const progress = document.getElementById('analysis-progress');
     const fill = document.getElementById('progress-fill');
     const status = document.getElementById('progress-status');
-    const examId = document.getElementById('upload-exam-select').value;
+    const fileInput = document.getElementById('file-input');
+    const examId = this.state.activeExam?.id || this.state.userExams[0]?.id;
+
+    if (!examId) {
+      alert('Please select your target exam in onboarding/settings first.');
+      this.showOnboarding();
+      return;
+    }
+
+    // Minimal Upload UI: first tap opens file picker.
+    if (this.state.uploadFiles.length === 0) {
+      if (fileInput) fileInput.click();
+      return;
+    }
 
     if (btn) btn.disabled = true;
     if (progress) progress.classList.remove('hidden');
@@ -897,17 +1044,30 @@ const app = {
 
       if (fill) fill.style.width = '90%';
       if (status) status.textContent = 'AI is analyzing questions...';
-      await this.performAIAnalysis(examId, extractedTexts);
+      const analysis = await this.performAIAnalysis(examId, extractedTexts);
+      this.state.latestAnalysisContext = {
+        examId,
+        topics: (analysis?.topics || []).slice(0, 6),
+        questions: (analysis?.questions || []).slice(0, 5).map(q => q.text || '').filter(Boolean),
+        chat: [],
+      };
+      this.state.pendingAnalysis = {
+        examId,
+        questions: (analysis?.questions || []).map(q => ({ ...q, approved: (q.confidence || 0) >= 0.55 })),
+        topics: (analysis?.topics || []).map(t => ({ ...t, approved: (t.confidence || 0) >= 0.55 })),
+      };
       if (fill) fill.style.width = '100%';
       if (status) status.textContent = 'Analysis complete!';
+      this.renderAnalysisReview();
+      this.renderAnalysisAssistant();
+      await this.updateDashboard();
 
       setTimeout(() => {
         if (progress) progress.classList.add('hidden');
         if (btn) btn.disabled = false;
         this.state.uploadFiles = [];
         this.renderFileList();
-        this.showView('practice');
-        alert('All papers analyzed and added to your bank!');
+        alert('Analysis complete! Review flagged items, approve them, then save to bank.');
       }, 1000);
     } catch (e) {
       console.error(e);
@@ -959,6 +1119,8 @@ const app = {
 
     const response = await this.groqCall(prompt);
     const result = this.parseJSON(response);
+    let questions = Array.isArray(result.questions) ? result.questions : [];
+    let topics = Array.isArray(result.topics) ? result.topics : [];
 
     if (result.questions) {
       for (const q of result.questions) {
@@ -984,6 +1146,7 @@ const app = {
         await this.dbPut('topics', t);
       }
     }
+    return { questions, topics };
   },
 
   async groqCall(prompt) {
@@ -995,6 +1158,17 @@ const app = {
     if (!resp.ok) throw new Error(`Groq API Error: ${resp.status}`);
     const data = await resp.json();
     return data.choices[0].message.content;
+  },
+
+  async groqTextCall(prompt) {
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.state.apiKey}` },
+      body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: prompt }] }),
+    });
+    if (!resp.ok) throw new Error(`Groq API Error: ${resp.status}`);
+    const data = await resp.json();
+    return (data.choices?.[0]?.message?.content || '').trim();
   },
 
   parseJSON(raw) {
@@ -1414,10 +1588,15 @@ const app = {
   }
 };
 
+Object.assign(app, authMixin, dbMixin);
+
 // Configure PDF.js Worker
 if (window.pdfjsLib) {
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 }
+
+// Expose app to global scope for inline HTML handlers
+window.app = app;
 
 // Start the app
 window.addEventListener('DOMContentLoaded', () => app.init());
