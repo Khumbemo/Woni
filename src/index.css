@@ -586,3 +586,69 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); font
 .content-area {
   -webkit-overflow-scrolling: touch;
 }
+
+/* ============================================================
+   Phase 2-3: New UI Components
+   ============================================================ */
+
+/* Skeleton Loading States */
+.skeleton-card {
+  background: var(--surface2);
+  border-radius: var(--radius);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  margin-bottom: 12px;
+}
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.2; }
+}
+
+/* Search Input */
+.search-input {
+  width: 100%;
+  padding: 10px 16px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 14px;
+  margin-bottom: 12px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.search-input:focus {
+  border-color: var(--accent);
+}
+.search-input::placeholder {
+  color: var(--muted2);
+}
+
+/* Drop Zone */
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 16px;
+}
+.drop-zone:hover, .drop-zone.dragover {
+  border-color: var(--accent);
+  background: rgba(249, 115, 22, 0.05);
+}
+.drop-zone p {
+  margin: 4px 0;
+}
+.file-list {
+  margin-bottom: 12px;
+}
+
+/* Sticky Session Header */
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}

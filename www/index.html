@@ -7,8 +7,8 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>"/>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <link rel="manifest" href="/manifest.json" />
-  <script type="module" crossorigin src="/assets/index-r9i7jLeY.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-D0KZDIi1.css">
+  <script type="module" crossorigin src="/assets/index-BOPg8OaE.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-C3JhMQ62.css">
 <link rel="manifest" href="/manifest.webmanifest"></head>
 <body class="dark-theme">
   <!-- Science Background -->
@@ -166,7 +166,14 @@
         <div class="upload-container">
           <input type="file" id="file-input" class="hidden" multiple accept=".pdf,.txt,.jpg,.jpeg,.png"/>
 
-          <button id="start-analysis-btn" class="btn accent start-btn" disabled>
+          <div id="drop-zone" class="drop-zone">
+            <p>Drag & drop files here, or tap to browse</p>
+            <p class="muted">PDF, TXT, JPG, PNG supported</p>
+          </div>
+
+          <div id="file-list" class="file-list"></div>
+
+          <button id="start-analysis-btn" class="btn accent start-btn">
             Analyze with AI →
           </button>
           <div id="analysis-progress" class="progress-container hidden">
@@ -207,29 +214,28 @@
           <div id="active-exam-badge-practice" class="badge hidden"></div>
         </header>
         <div class="practice-options">
-          <div class="practice-card" onclick="app.showMockTestSetup()">
+          <div class="practice-card" data-action="showMockTestSetup">
             <div class="pc-icon"><i data-lucide="file-text"></i></div>
             <div class="pc-info">
               <h4>Mock Test</h4>
               <p>Simulate exam conditions with custom parameters.</p>
             </div>
           </div>
-          <div class="practice-card" onclick="app.startFlashcards()">
+          <div class="practice-card" data-action="startFlashcards">
             <div class="pc-icon"><i data-lucide="layers"></i></div>
             <div class="pc-info">
               <h4>Flashcards</h4>
               <p>Spaced repetition for long-term retention.</p>
             </div>
           </div>
-          <div class="practice-card" onclick="app.showTopicGrid()">
+          <div class="practice-card" data-action="showTopicGrid">
             <div class="pc-icon"><i data-lucide="bar-chart-3"></i></div>
             <div class="pc-info">
               <h4>Topic Mastery</h4>
               <p>Practice specific topics you're weak in.</p>
             </div>
           </div>
-          <!-- Focus Timer Feature -->
-          <div class="practice-card" onclick="app.showFocusTimer()">
+          <div class="practice-card" data-action="showFocusTimer">
             <div class="pc-icon"><i data-lucide="timer"></i></div>
             <div class="pc-info">
               <h4>Focus Timer</h4>
@@ -257,8 +263,8 @@
               <input type="number" id="mock-q-count" value="20" min="5" max="100">
             </div>
             <div class="form-actions">
-              <button class="btn" onclick="app.hideSubView('mock-test-setup')">Cancel</button>
-              <button class="btn accent" onclick="app.startMockTest()">Start Test</button>
+              <button class="btn" data-action="hideSubView" data-param="mock-test-setup">Cancel</button>
+              <button class="btn accent" data-action="startMockTest">Start Test</button>
             </div>
           </div>
         </div>
@@ -271,10 +277,10 @@
         <!-- Active Mock Test / Flashcards View (Overlay) -->
         <div id="active-session-overlay" class="overlay hidden">
           <div class="session-container">
-             <div id="session-header" class="session-header">
+             <div id="session-header" class="session-header sticky-header">
                <span id="session-title">Mock Test</span>
                <span id="session-timer" class="mono">00:00</span>
-               <button class="close-session" onclick="app.exitSession()">✕</button>
+               <button class="close-session" data-action="exitSession">✕</button>
              </div>
              <div id="session-content" class="session-content">
                <!-- Content injected by JS -->
@@ -307,13 +313,13 @@
       <section id="view-library" class="view">
         <header class="view-header">
           <h2>Library</h2>
-          <button class="btn small" onclick="document.getElementById('lib-upload').click()">
+          <button class="btn small" data-action="showLibraryUploadModal">
             <i data-lucide="plus"></i> Add Book
           </button>
-          <input type="file" id="lib-upload" class="hidden" accept=".pdf,.txt" onchange="app.handleLibraryUpload(event)">
         </header>
 
         <div class="library-browser">
+          <input type="text" id="lib-search" class="search-input" placeholder="Search books..." />
           <div class="lib-exam-tabs" id="lib-exam-tabs">
             <!-- Tabs injected by JS -->
           </div>
@@ -324,6 +330,25 @@
           </div>
         </div>
       </section>
+
+      <!-- Library Upload Modal -->
+      <div id="library-upload-modal" class="overlay hidden">
+        <div class="overlay-content" style="max-width: 400px;">
+          <h3>Add Book to Library</h3>
+          <div class="form-group">
+            <label>Subject</label>
+            <input type="text" id="lib-upload-subject" placeholder="e.g. Biochemistry, History" />
+          </div>
+          <div class="form-group">
+            <label>File</label>
+            <input type="file" id="lib-upload-file" accept=".pdf,.txt" />
+          </div>
+          <div class="form-actions">
+            <button class="btn" data-action="hideLibraryUploadModal">Cancel</button>
+            <button class="btn accent" id="lib-upload-save">Add to Shelf</button>
+          </div>
+        </div>
+      </div>
 
       <!-- Settings View -->
       <section id="view-settings" class="view">
@@ -345,7 +370,7 @@
                  <span>Sync Now</span>
                  <p class="muted">Push/Pull local data to cloud</p>
                </div>
-               <button class="btn small accent" onclick="app.syncWithCloud()">Sync</button>
+               <button class="btn small accent" data-action="syncWithCloud">Sync</button>
             </div>
             <div class="setting-item">
                <div class="setting-info">
@@ -353,7 +378,7 @@
                  <p class="muted">Groq API Key for analysis</p>
                </div>
                <input type="password" id="api-key-input" placeholder="Optional for first 5 uses">
-               <button class="btn small" onclick="app.saveApiKey()">Save</button>
+               <button class="btn small" data-action="saveApiKey">Save</button>
                <p id="api-key-info" class="muted-mini" style="width: 100%; margin-top: 5px;">You have free AI uses remaining.</p>
             </div>
 
@@ -373,7 +398,7 @@
             <h3>Preferences</h3>
             <div class="setting-item">
               <span>Appearance</span>
-              <select id="theme-select" onchange="app.setTheme(this.value)">
+              <select id="theme-select">
                 <option value="dark">Dark</option>
                 <option value="light">Light</option>
                 <option value="system">System</option>
@@ -381,7 +406,7 @@
             </div>
             <div class="setting-item">
                <span>Target Exams</span>
-               <button class="btn small" onclick="app.showOnboarding()">Change</button>
+               <button class="btn small" data-action="showOnboarding">Change</button>
             </div>
           </div>
 
@@ -389,16 +414,16 @@
             <h3>Data Management</h3>
             <div class="setting-item">
               <span>Export Data (JSON)</span>
-              <button class="btn small" onclick="app.exportData()">Export</button>
+              <button class="btn small" data-action="exportData">Export</button>
             </div>
             <div class="setting-item">
               <span>Import Data</span>
-              <input type="file" id="import-file" class="hidden" accept=".json" onchange="app.importData(event)">
-              <button class="btn small" onclick="document.getElementById('import-file').click()">Import</button>
+              <input type="file" id="import-file" class="hidden" accept=".json">
+              <button class="btn small" id="trigger-import-btn">Import</button>
             </div>
             <div class="setting-item">
               <span class="danger">Clear All Data</span>
-              <button class="btn small danger" onclick="app.clearAllData()">Reset</button>
+              <button class="btn small danger" data-action="clearAllData">Reset</button>
             </div>
           </div>
 
@@ -416,7 +441,7 @@
                 <option value="slet_ls">SLET Life Science</option>
               </select>
               <input type="file" id="admin-book-file" accept="application/pdf" class="w-full" style="padding: 8px;">
-              <button class="btn" onclick="app.adminUploadBook()" id="admin-upload-btn" style="margin-top: 0.5rem;">Upload to Cloud</button>
+              <button class="btn" data-action="adminUploadBook" id="admin-upload-btn" style="margin-top: 0.5rem;">Upload to Cloud</button>
             </div>
           </div>
         </div>
@@ -455,16 +480,6 @@
   </div>
   <div id="toast-mount"></div>
 
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').then(registration => {
-          console.log('SW registered: ', registration);
-        }).catch(registrationError => {
-          console.log('SW registration failed: ', registrationError);
-        });
-      });
-    }
-  </script>
+
 </body>
 </html>

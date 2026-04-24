@@ -26,6 +26,11 @@ export const aiMixin = {
     return result.data.text;
   },
 
+  /**
+   * Performs AI analysis on extracted texts.
+   * IMPORTANT: This method only RETURNS parsed data — it does NOT save to IndexedDB.
+   * Saving happens in saveReviewedAnalysis() after user review.
+   */
   async performAIAnalysis(examId, extractedTexts) {
     const combinedText = extractedTexts.map(t => `SOURCE: ${t.name}\n${t.text.slice(0, 4000)}`).join('\n---\n');
     const prompt = `You are an AI specialized in exam preparation for ${examId}.
@@ -48,54 +53,52 @@ export const aiMixin = {
 
     const response = await this.groqCall(prompt);
     const result = this.parseJSON(response);
-    let questions = Array.isArray(result.questions) ? result.questions : [];
-    let topics = Array.isArray(result.topics) ? result.topics : [];
+    const questions = Array.isArray(result.questions) ? result.questions : [];
+    const topics = Array.isArray(result.topics) ? result.topics : [];
 
-    if (result.questions) {
-      for (const q of result.questions) {
-        q.exam = examId;
-        await this.dbAdd('questions', q);
-        await this.dbAdd('flashcards', {
-          questionId: null,
-          front: q.text || q.question || "Empty Question",
-          back: `Answer: ${q.answer}\n\nExplanation: ${q.explanation}`,
-          topic: q.topic,
-          nextReview: Date.now(),
-          interval: 0,
-          repetition: 0,
-          ease: 2.5
-        });
-      }
-    }
-    if (result.topics) {
-      for (const t of result.topics) {
-        t.id = `${examId}_${t.name}`;
-        t.exam = examId;
-        t.mastery = 0;
-        await this.dbPut('topics', t);
-      }
-    }
+    // Tag each item with the exam ID (but do NOT save to DB yet)
+    questions.forEach(q => { q.exam = examId; });
+    topics.forEach(t => {
+      t.id = `${examId}_${t.name}`;
+      t.exam = examId;
+      t.mastery = 0;
+    });
+
     return { questions, topics };
   },
 
   getProxyUrl() {
-    return 'https://woni-ai-proxy.khumbemo.workers.dev/chat'; // Placeholder URL
+    return 'https://woni-ai-proxy.khumbemo.workers.dev/chat';
+  },
+
+  // --- Freemium Counter with Tamper Detection ---
+  _freemiumHash(count) {
+    // Simple hash to detect localStorage tampering
+    return btoa(`woni_fc_${count}_salt_x7k`);
+  },
+
+  getFreemiumCount() {
+    const count = parseInt(localStorage.getItem('woni_freemium_count') || '0', 10);
+    const hash = localStorage.getItem('woni_freemium_hash');
+    // If hash doesn't match, the counter was tampered — treat as exhausted
+    if (hash && hash !== this._freemiumHash(count)) {
+      return 5; // Max out
+    }
+    return count;
   },
 
   incrementFreemium() {
     if (this.state.apiKey) return;
-    const count = parseInt(localStorage.getItem('woni_freemium_count') || '0', 10);
-    localStorage.setItem('woni_freemium_count', (count + 1).toString());
-    
-    // Update setting UI if visible
+    const count = this.getFreemiumCount() + 1;
+    localStorage.setItem('woni_freemium_count', count.toString());
+    localStorage.setItem('woni_freemium_hash', this._freemiumHash(count));
     this.updateSettingsUI();
   },
 
   updateSettingsUI() {
-    // A helper to show freemium status in settings
     const info = document.getElementById('api-key-info');
     if (info && !this.state.apiKey) {
-       const count = parseInt(localStorage.getItem('woni_freemium_count') || '0', 10);
+       const count = this.getFreemiumCount();
        info.textContent = `Freemium Analyses Used: ${count}/5`;
     }
   },
@@ -106,13 +109,25 @@ export const aiMixin = {
     const headers = { 'Content-Type': 'application/json' };
     if (!useProxy) headers['Authorization'] = `Bearer ${this.state.apiKey}`;
 
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: prompt }], response_format: { type: "json_object" } }),
-    });
+    let resp;
+    try {
+      resp = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: prompt }], response_format: { type: "json_object" } }),
+      });
+    } catch (networkErr) {
+      if (useProxy) {
+        throw new Error('AI Proxy is currently unavailable. Please add your own free Groq API Key in Settings → API Key.');
+      }
+      throw new Error('Network error: Could not reach Groq API. Check your internet connection.');
+    }
     
-    if (!resp.ok) throw new Error(useProxy ? "Proxy Error: Make sure your worker is deployed." : `Groq API Error: ${resp.status}`);
+    if (!resp.ok) {
+      if (useProxy) throw new Error('AI Proxy returned an error. Please add your own free Groq API Key in Settings → API Key.');
+      const errBody = await resp.text().catch(() => '');
+      throw new Error(`Groq API Error (${resp.status}): ${errBody.slice(0, 120)}`);
+    }
     const data = await resp.json();
     this.incrementFreemium();
     return data.choices[0].message.content;
@@ -124,13 +139,25 @@ export const aiMixin = {
     const headers = { 'Content-Type': 'application/json' };
     if (!useProxy) headers['Authorization'] = `Bearer ${this.state.apiKey}`;
 
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: prompt }] }),
-    });
+    let resp;
+    try {
+      resp = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: prompt }] }),
+      });
+    } catch (networkErr) {
+      if (useProxy) {
+        throw new Error('AI Proxy is currently unavailable. Please add your own free Groq API Key in Settings → API Key.');
+      }
+      throw new Error('Network error: Could not reach Groq API. Check your internet connection.');
+    }
     
-    if (!resp.ok) throw new Error(useProxy ? "Proxy Error: Make sure your worker is deployed." : `Groq API Error: ${resp.status}`);
+    if (!resp.ok) {
+      if (useProxy) throw new Error('AI Proxy returned an error. Please add your own free Groq API Key in Settings → API Key.');
+      const errBody = await resp.text().catch(() => '');
+      throw new Error(`Groq API Error (${resp.status}): ${errBody.slice(0, 120)}`);
+    }
     const data = await resp.json();
     this.incrementFreemium();
     return (data.choices?.[0]?.message?.content || '').trim();
