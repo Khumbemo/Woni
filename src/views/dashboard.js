@@ -58,7 +58,16 @@ export const dashboardMixin = {
     const streakEl = document.getElementById('dash-streak');
     const streak = (streakEl && parseInt(streakEl.textContent)) || 0;
 
-    let msg = "Welcome back, scholar! What shall we discover today?";
+    // Time-of-day aware greetings
+    const hour = new Date().getHours();
+    let greeting;
+    if (hour < 6) greeting = "Burning the midnight oil? Your dedication is legendary!";
+    else if (hour < 12) greeting = "Good morning, scholar! A fresh start to conquer your goals.";
+    else if (hour < 17) greeting = "Good afternoon! Keep the momentum going strong.";
+    else if (hour < 21) greeting = "Evening study session? Smart move — consistency wins.";
+    else greeting = "Late-night revision? Remember to rest well too!";
+
+    let msg = greeting;
     let icon = "smile";
 
     if (streak >= 7) {

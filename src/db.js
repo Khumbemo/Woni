@@ -5,7 +5,7 @@ export const dbMixin = {
     return new Promise((resolve) => {
       const attemptInit = async () => {
         try {
-          this.state.db = await idb.openDB('woni_db', 3, {
+          this.state.db = await idb.openDB('woni_db', 4, {
             upgrade(db, oldVersion, newVersion) {
               // Papers store
               if (!db.objectStoreNames.contains('papers')) {
@@ -44,6 +44,10 @@ export const dbMixin = {
                 const lStore = db.createObjectStore('library', { keyPath: 'id', autoIncrement: true });
                 lStore.createIndex('exam', 'exam');
                 lStore.createIndex('subject', 'subject');
+              }
+              // Chat history store (v4)
+              if (!db.objectStoreNames.contains('chat_history')) {
+                const cStore = db.createObjectStore('chat_history', { keyPath: 'exam' });
               }
             },
           });

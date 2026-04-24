@@ -18,6 +18,7 @@ export const libraryMixin = {
 
   switchLibTab(examId) {
     this.state.activeLibExam = examId;
+    this._resetStudyChat();
     this.updateLibraryView();
   },
 
@@ -211,5 +212,225 @@ export const libraryMixin = {
     } finally {
       if (btn) { btn.textContent = originalText; btn.disabled = false; }
     }
+  },
+
+  // ====================================================================
+  //  Study Assistant — Subject-Scoped AI Tutor
+  // ====================================================================
+
+  /** Toggle the Study Assistant chat panel open/closed */
+  toggleStudyAssistant() {
+    const card = document.getElementById('study-assistant-card');
+    const panel = document.getElementById('sa-chat-panel');
+    if (!card || !panel) return;
+
+    const isExpanded = card.classList.contains('sa-expanded');
+    if (isExpanded) {
+      card.classList.remove('sa-expanded');
+      panel.classList.add('hidden');
+    } else {
+      card.classList.add('sa-expanded');
+      panel.classList.remove('hidden');
+      this.initStudyChat();
+    }
+    this.updateLucide();
+  },
+
+  /** Initialize chat: load history or show welcome message */
+  async initStudyChat() {
+    const examId = this.state.activeLibExam;
+    if (!examId) return;
+
+    // Load chat history from IndexedDB
+    if (!this.state._studyChatCache || this.state._studyChatCache.exam !== examId) {
+      let stored = null;
+      try { stored = await this.dbGet('chat_history', examId); } catch {}
+      this.state._studyChatCache = {
+        exam: examId,
+        messages: stored?.messages || [],
+      };
+    }
+
+    // Show welcome if empty
+    if (this.state._studyChatCache.messages.length === 0) {
+      const examName = this.state.userExams.find(e => e.id === examId)?.name || examId;
+      this.state._studyChatCache.messages.push({
+        role: 'system',
+        content: `Hi! I'm your ${examName} study assistant. Ask me about any topic in your syllabus — I'll explain concepts, quiz you, and help you revise.`
+      });
+    }
+
+    this.renderStudyChatMessages();
+    this._bindStudyChatInput();
+
+    // Update subtitle with exam name
+    const subtitle = document.getElementById('sa-subtitle');
+    const examName = this.state.userExams.find(e => e.id === this.state.activeLibExam)?.name || '';
+    if (subtitle && examName) subtitle.textContent = `Tutor for ${examName}`;
+  },
+
+  /** Bind Enter key on the chat input */
+  _bindStudyChatInput() {
+    const input = document.getElementById('sa-chat-input');
+    if (!input || input._saBound) return;
+    input._saBound = true;
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        this.sendStudyChat();
+      }
+    });
+  },
+
+  /** Build the subject-guarded system prompt with user context */
+  async _buildTutorSystemPrompt(examId) {
+    const syllabusHint = this.SYLLABUS_HINTS?.[examId] || '';
+    const examName = this.state.userExams.find(e => e.id === examId)?.name || examId;
+
+    // Pull mastery data for context
+    let masteryContext = '';
+    try {
+      const topics = await this.dbGetFromIndex('topics', 'exam', examId);
+      if (topics.length > 0) {
+        const sorted = topics.sort((a, b) => (a.mastery || 0) - (b.mastery || 0));
+        const weak = sorted.slice(0, 3).map(t => `${t.name} (${t.mastery || 0}%)`).join(', ');
+        const strong = sorted.slice(-3).map(t => `${t.name} (${t.mastery || 0}%)`).join(', ');
+        masteryContext = `\nStudent's weakest topics: ${weak}\nStudent's strongest topics: ${strong}`;
+      }
+    } catch {}
+
+    // Pull a few sample questions for context
+    let sampleQuestions = '';
+    try {
+      const questions = await this.dbGetFromIndex('questions', 'exam', examId);
+      if (questions.length > 0) {
+        const samples = questions.slice(0, 3).map(q => `- ${q.text}`).join('\n');
+        sampleQuestions = `\nSample questions from student's bank:\n${samples}`;
+      }
+    } catch {}
+
+    return `You are Woni Study Assistant, an expert tutor exclusively for ${examName}.
+${syllabusHint ? `\nOfficial syllabus: ${syllabusHint}` : ''}
+${masteryContext}
+${sampleQuestions}
+
+RULES:
+1. ONLY discuss topics within the ${examName} syllabus listed above.
+2. If the student asks about anything outside these subjects (politics, entertainment, coding, etc.), politely decline: "I'm specialized in ${examName} topics. Let me help you with your syllabus subjects instead!"
+3. Adjust explanation depth based on the student's mastery level — simpler for weak topics, more advanced for strong ones.
+4. Use bullet points and clear structure. Keep answers concise (3-8 bullets).
+5. When explaining a concept, end with a quick self-check question when appropriate.
+6. If the student asks you to quiz them, create a mini MCQ from their syllabus.`;
+  },
+
+  /** Send a message to the Study Assistant */
+  async sendStudyChat() {
+    const input = document.getElementById('sa-chat-input');
+    const sendBtn = document.getElementById('sa-chat-send');
+    if (!input) return;
+    const question = input.value.trim();
+    if (!question) return;
+
+    // Check freemium limits
+    if (!this.state.apiKey) {
+      const count = this.getFreemiumCount ? this.getFreemiumCount() : 0;
+      if (count >= 5) {
+        this.showToast('Freemium limit reached. Please add your API Key in Settings.', 'error');
+        return;
+      }
+    }
+
+    const examId = this.state.activeLibExam;
+    if (!examId) return;
+
+    // Add user message
+    input.value = '';
+    if (sendBtn) sendBtn.disabled = true;
+    this.state._studyChatCache.messages.push({ role: 'user', content: question });
+    this.renderStudyChatMessages();
+
+    // Show typing indicator
+    this._showTypingIndicator(true);
+
+    try {
+      const systemPrompt = await this._buildTutorSystemPrompt(examId);
+
+      // Convert our message format to API format (skip system/display messages)
+      const apiMessages = this.state._studyChatCache.messages
+        .filter(m => m.role === 'user' || m.role === 'assistant')
+        .map(m => ({ role: m.role, content: m.content }));
+
+      const response = await this.groqTutorCall(systemPrompt, apiMessages);
+
+      this.state._studyChatCache.messages.push({ role: 'assistant', content: response });
+    } catch (e) {
+      this.state._studyChatCache.messages.push({
+        role: 'assistant',
+        content: `I hit an error: ${e.message}\n\nTip: If this persists, check your API Key in Settings.`
+      });
+    } finally {
+      this._showTypingIndicator(false);
+      if (sendBtn) sendBtn.disabled = false;
+      this.renderStudyChatMessages();
+      this._saveStudyChatHistory();
+    }
+  },
+
+  /** Render all chat messages */
+  renderStudyChatMessages() {
+    const log = document.getElementById('sa-chat-log');
+    if (!log || !this.state._studyChatCache) return;
+
+    log.innerHTML = this.state._studyChatCache.messages.map(m => {
+      if (m.role === 'system') {
+        return `<div class="sa-msg system">${this.escapeHtml(m.content)}</div>`;
+      }
+      if (m.role === 'user') {
+        return `<div class="sa-msg user">${this.escapeHtml(m.content)}</div>`;
+      }
+      // assistant
+      return `<div class="sa-msg ai"><span class="sa-msg-label">Woni Tutor</span>${this.escapeHtml(m.content)}</div>`;
+    }).join('');
+
+    // Scroll to bottom
+    requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; });
+  },
+
+  /** Show/hide typing dots */
+  _showTypingIndicator(show) {
+    const log = document.getElementById('sa-chat-log');
+    if (!log) return;
+    const existing = log.querySelector('.sa-typing');
+    if (existing) existing.remove();
+    if (show) {
+      const dots = document.createElement('div');
+      dots.className = 'sa-typing';
+      dots.innerHTML = '<div class="sa-typing-dot"></div><div class="sa-typing-dot"></div><div class="sa-typing-dot"></div>';
+      log.appendChild(dots);
+      log.scrollTop = log.scrollHeight;
+    }
+  },
+
+  /** Persist chat history to IndexedDB */
+  async _saveStudyChatHistory() {
+    if (!this.state._studyChatCache || !this.state.db) return;
+    try {
+      await this.dbPut('chat_history', {
+        exam: this.state._studyChatCache.exam,
+        messages: this.state._studyChatCache.messages.slice(-50), // Keep last 50 messages
+        updatedAt: Date.now(),
+      });
+    } catch (e) {
+      console.warn('Failed to save chat history', e);
+    }
+  },
+
+  /** Reset chat when switching exam tabs */
+  _resetStudyChat() {
+    this.state._studyChatCache = null;
+    const panel = document.getElementById('sa-chat-panel');
+    const card = document.getElementById('study-assistant-card');
+    if (panel) panel.classList.add('hidden');
+    if (card) card.classList.remove('sa-expanded');
   },
 };

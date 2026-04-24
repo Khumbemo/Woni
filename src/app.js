@@ -30,7 +30,8 @@ import { createIcons,
   Microscope, Leaf, Dna, Landmark, GraduationCap,
   Sparkles, Smile, Zap, Award, Frown,
   FileText, Layers, BarChart3, Timer,
-  Plus, HelpCircle, Cloud, ExternalLink, File, X
+  Plus, HelpCircle, Cloud, ExternalLink, File, X,
+  Send, ChevronDown
 } from 'lucide';
 
 const usedIcons = {
@@ -38,7 +39,8 @@ const usedIcons = {
   Microscope, Leaf, Dna, Landmark, GraduationCap,
   Sparkles, Smile, Zap, Award, Frown,
   FileText, Layers, BarChart3, Timer,
-  Plus, HelpCircle, Cloud, ExternalLink, File, X
+  Plus, HelpCircle, Cloud, ExternalLink, File, X,
+  Send, ChevronDown
 };
 
 // Register PWA Service Worker

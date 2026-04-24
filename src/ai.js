@@ -27,25 +27,54 @@ export const aiMixin = {
   },
 
   /**
+   * Official syllabus unit names per exam, injected into AI prompts
+   * so extracted topics align with real exam categories.
+   */
+  SYLLABUS_HINTS: {
+    csir_net: 'Official CSIR NET Life Science units: (1) Molecules & Interaction, (2) Cellular Organization, (3) Fundamental Processes, (4) Cell Communication, (5) Developmental Biology, (6) System Physiology (Plant & Animal), (7) Inheritance Biology, (8) Diversity of Life Forms, (9) Ecological Principles, (10) Evolution & Behaviour, (11) Applied Biology, (12) Methods in Biology.',
+    gate_ls: 'Official GATE Life Sciences sections: General Aptitude, Chemistry, Biochemistry, Botany, Microbiology, Zoology, Food Technology, Ecology & Evolution.',
+    ugc_net_env: 'Official UGC NET Environmental Sciences units: Environmental Chemistry, Pollution & Control, Environmental Biology & Ecology, Environmental Management & Policy, Climate Change & Sustainability, Biodiversity & Conservation, EIA & Audit.',
+    npsc_ncs: 'NPSC NCS sections: General English, General Knowledge, History of Nagaland, Indian Polity, Geography, Economy, Current Affairs, Aptitude & Reasoning.',
+    slet_ls: 'SLET Life Science units: Cell Biology, Genetics & Molecular Biology, Biochemistry, Physiology (Plant & Animal), Ecology & Evolution, Taxonomy & Systematics, Immunology, Biotechnology, Microbiology.',
+  },
+
+  /**
+   * Smart text sampling — instead of a naive first-N-chars slice,
+   * take chunks from beginning, middle, and end of each source
+   * to capture better context from large PDFs.
+   */
+  _smartSample(text, budget = 4000) {
+    if (text.length <= budget) return text;
+    const third = Math.floor(budget / 3);
+    const start = text.slice(0, third);
+    const midPoint = Math.floor(text.length / 2);
+    const middle = text.slice(midPoint - Math.floor(third / 2), midPoint + Math.floor(third / 2));
+    const end = text.slice(-third);
+    return `${start}\n[...middle section...]\n${middle}\n[...end section...]\n${end}`;
+  },
+
+  /**
    * Performs AI analysis on extracted texts.
    * IMPORTANT: This method only RETURNS parsed data — it does NOT save to IndexedDB.
    * Saving happens in saveReviewedAnalysis() after user review.
    */
   async performAIAnalysis(examId, extractedTexts) {
-    const combinedText = extractedTexts.map(t => `SOURCE: ${t.name}\n${t.text.slice(0, 4000)}`).join('\n---\n');
+    const combinedText = extractedTexts.map(t => `SOURCE: ${t.name}\n${this._smartSample(t.text, 4000)}`).join('\n---\n');
+    const syllabusHint = this.SYLLABUS_HINTS[examId] || '';
     const prompt = `You are an AI specialized in exam preparation for ${examId}.
+    ${syllabusHint ? `Use these official syllabus units to categorize topics: ${syllabusHint}` : ''}
     Extract structured questions and topics from the text.
 
     For each question, include:
     - "text": The question content.
     - "options": An array of 4 multiple-choice options.
     - "answer": The correct option (A, B, C, or D).
-    - "topic": The specific topic name.
+    - "topic": The specific topic name (align with official syllabus units when possible).
     - "difficulty": easy, medium, or hard.
     - "explanation": A brief explanation of the answer.
 
     For each topic, include:
-    - "name": The topic name.
+    - "name": The topic name (use official syllabus unit names when applicable).
     - "frequency": Estimated importance (0-100).
     - "priority": high, med, or low.
 
@@ -196,5 +225,52 @@ export const aiMixin = {
       } catch (e2) { }
       return {};
     }
+  },
+
+  /**
+   * Subject-guarded conversational AI tutor for the Library Study Assistant.
+   * Takes a full message history for multi-turn context.
+   * @param {string} systemPrompt - The system instruction with subject constraints
+   * @param {Array} messages - Array of { role: 'user'|'assistant', content: string }
+   * @returns {string} The AI response text
+   */
+  async groqTutorCall(systemPrompt, messages) {
+    const useProxy = !this.state.apiKey;
+    const url = useProxy ? this.getProxyUrl() : 'https://api.groq.com/openai/v1/chat/completions';
+    const headers = { 'Content-Type': 'application/json' };
+    if (!useProxy) headers['Authorization'] = `Bearer ${this.state.apiKey}`;
+
+    const apiMessages = [
+      { role: 'system', content: systemPrompt },
+      ...messages.slice(-10) // Keep last 10 messages for context window efficiency
+    ];
+
+    let resp;
+    try {
+      resp = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: apiMessages,
+          temperature: 0.7,
+          max_tokens: 1024,
+        }),
+      });
+    } catch (networkErr) {
+      if (useProxy) {
+        throw new Error('AI Proxy is currently unavailable. Please add your own free Groq API Key in Settings → API Key.');
+      }
+      throw new Error('Network error: Could not reach Groq API. Check your internet connection.');
+    }
+
+    if (!resp.ok) {
+      if (useProxy) throw new Error('AI Proxy returned an error. Please add your own free Groq API Key in Settings → API Key.');
+      const errBody = await resp.text().catch(() => '');
+      throw new Error(`Groq API Error (${resp.status}): ${errBody.slice(0, 120)}`);
+    }
+    const data = await resp.json();
+    this.incrementFreemium();
+    return (data.choices?.[0]?.message?.content || '').trim();
   }
 };

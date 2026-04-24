@@ -16,6 +16,10 @@ export const routerMixin = {
     const target = document.getElementById(`view-${viewId}`);
     if (target) target.classList.add('active');
 
+    // Smooth scroll content area to top
+    const mainContent = document.getElementById('main-content');
+    if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+
     document.querySelectorAll('.nav-item').forEach(n => {
       n.classList.toggle('active', n.dataset.view === viewId);
     });
