@@ -4,11 +4,26 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Woni — AI Exam Intelligence</title>
+  <meta name="description" content="AI-powered exam preparation for CSIR NET, GATE Life Science, UGC NET, SLET & NPSC. Upload papers, extract questions with AI, practice with spaced repetition flashcards, and track your mastery." />
+  <meta name="theme-color" content="#0c0c0f" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Woni — AI Exam Intelligence" />
+  <meta property="og:description" content="Upload past papers, extract questions with AI, practice with smart flashcards, and master your target exams." />
+  <meta property="og:url" content="https://woni-f6a2a.web.app/" />
+  <meta property="og:site_name" content="Woni" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Woni — AI Exam Intelligence" />
+  <meta name="twitter:description" content="AI-powered exam prep for CSIR NET, GATE LS, UGC NET, SLET & NPSC. Upload papers → extract questions → practice smarter." />
+
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>"/>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <link rel="manifest" href="/manifest.json" />
-  <script type="module" crossorigin src="/assets/index-BOPg8OaE.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-C3JhMQ62.css">
+  <script type="module" crossorigin src="/assets/index-BNiOvnb3.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-xEDFe27n.css">
 <link rel="manifest" href="/manifest.webmanifest"></head>
 <body class="dark-theme">
   <!-- Science Background -->
@@ -323,6 +338,34 @@
           <div class="lib-exam-tabs" id="lib-exam-tabs">
             <!-- Tabs injected by JS -->
           </div>
+
+          <!-- Study Assistant (Inline Card → Expandable Chat) -->
+          <div class="study-assistant-card" id="study-assistant-card">
+            <div class="sa-header" data-action="toggleStudyAssistant">
+              <div class="sa-header-left">
+                <div class="sa-icon"><i data-lucide="sparkles"></i></div>
+                <div class="sa-header-info">
+                  <span class="sa-title">Study Assistant</span>
+                  <span class="sa-subtitle" id="sa-subtitle">Ask me anything about your subjects</span>
+                </div>
+              </div>
+              <div class="sa-toggle" id="sa-toggle-icon">
+                <i data-lucide="chevron-down"></i>
+              </div>
+            </div>
+            <div class="sa-chat-panel hidden" id="sa-chat-panel">
+              <div class="sa-chat-log" id="sa-chat-log">
+                <!-- Messages injected by JS -->
+              </div>
+              <div class="sa-chat-input-row">
+                <input id="sa-chat-input" type="text" placeholder="Ask about any topic in your syllabus..." />
+                <button id="sa-chat-send" class="btn small accent" data-action="sendStudyChat">
+                  <i data-lucide="send"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div class="lib-content">
             <div class="lib-subjects" id="lib-subjects">
               <!-- Subjects and Books injected by JS -->
