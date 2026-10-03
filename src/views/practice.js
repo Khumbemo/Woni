@@ -5,6 +5,7 @@
 import { h, render } from 'preact';
 import FocusTimer from '../components/FocusTimer.jsx';
 import { jsPDF } from 'jspdf';
+import { shuffle, answerToLetter, sm2 } from '../utils.js';
 
 export const practiceMixin = {
   async updatePracticeView() {
@@ -53,7 +54,7 @@ export const practiceMixin = {
       return;
     }
 
-    const selected = allQuestions.sort(() => 0.5 - Math.random()).slice(0, qCount);
+    const selected = shuffle(allQuestions).slice(0, qCount);
     this.hideSubView('mock-test-setup');
     this.openSession('Mock Test', 'test', selected);
   },
@@ -115,7 +116,7 @@ export const practiceMixin = {
         <div class="card-count">Card ${s.index + 1} of ${s.data.length}</div>
         <div class="flashcard-box" id="flashcard-box" data-action="flipCard">
           <div class="card-front">${this.escapeHtml(item.front)}</div>
-          <div class="card-back">${this.escapeHtml(item.back).replace(/\\n/g, '<br>')}</div>
+          <div class="card-back">${this.escapeHtml(item.back)}</div>
         </div>
         <p class="muted" style="text-align:center;margin-top:16px">Tap card to flip</p>
       `;
@@ -169,23 +170,7 @@ export const practiceMixin = {
     quality = parseInt(quality);
     const s = this.state.session;
     const card = s.data[s.index];
-    let { interval, repetition, ease } = card;
-
-    ease = ease || 2.5;
-
-    if (quality >= 3) {
-      if (repetition === 0) interval = 1;
-      else if (repetition === 1) interval = 6;
-      else interval = Math.round(interval * ease);
-      repetition++;
-    } else {
-      repetition = 0;
-      interval = 1;
-    }
-
-    // SM-2 ease factor formula
-    ease = ease + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
-    ease = Math.max(1.3, ease); // Floor at 1.3
+    const { interval, repetition, ease } = sm2(quality, card);
 
     card.interval = interval;
     card.repetition = repetition;
@@ -211,7 +196,7 @@ export const practiceMixin = {
         const topicName = q.topic || "General";
         if (!topicStats[topicName]) topicStats[topicName] = { correct: 0, total: 0 };
         topicStats[topicName].total++;
-        if (s.answers[i] === q.answer) { correctCount++; topicStats[topicName].correct++; }
+        if (s.answers[i] && s.answers[i] === answerToLetter(q)) { correctCount++; topicStats[topicName].correct++; }
       });
       const score = Math.round((correctCount / s.data.length) * 100);
       content.innerHTML = `<div class="results-box"><div class="res-score">${score}%</div><p>${correctCount} correct out of ${s.data.length}</p><p class="muted">Time: ${timerEl ? timerEl.textContent : ''}</p><button class="btn small accent" data-action="exportSessionPDF" style="margin-top:20px">Export Results PDF</button></div>`;
@@ -279,7 +264,7 @@ export const practiceMixin = {
     doc.setFontSize(12); doc.text(`Date: ${new Date().toLocaleString()}`, 20, 30);
     doc.text(`Exam: ${this.state.activeExam?.name || 'N/A'}`, 20, 40);
     let correctCount = 0;
-    s.data.forEach((q, i) => { if (s.answers[i] === q.answer) correctCount++; });
+    s.data.forEach((q, i) => { if (s.answers[i] && s.answers[i] === answerToLetter(q)) correctCount++; });
     const score = Math.round((correctCount / s.data.length) * 100);
     doc.setFontSize(16); doc.text(`Score: ${score}% (${correctCount}/${s.data.length})`, 20, 55);
     doc.setFontSize(12); let y = 70;
@@ -291,7 +276,7 @@ export const practiceMixin = {
       doc.text(lines, 20, y);
       y += (lines.length * 6);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Your Answer: ${s.answers[i] || 'None'} | Correct: ${q.answer}`, 25, y);
+      doc.text(`Your Answer: ${s.answers[i] || 'None'} | Correct: ${answerToLetter(q) || q.answer}`, 25, y);
       y += 10;
     });
     doc.save(`Woni_Result_${Date.now()}.pdf`);

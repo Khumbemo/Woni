@@ -3,3 +3,4 @@ node_modules/
 .qodo/
 test-results/
 playwright-report/
+dev-dist/

@@ -83,11 +83,14 @@ export const syncMixin = {
     a.href = url;
     a.download = `woni_backup_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
-    URL.revokeObjectURL(url);
+    // Revoking synchronously can cancel the download in some browsers.
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   },
 
   async importData(event) {
     const file = event.target.files[0];
+    // Reset so choosing the same file again still fires 'change'.
+    event.target.value = '';
     if (!file) return;
     try {
       const text = await file.text();

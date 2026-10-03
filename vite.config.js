@@ -30,6 +30,10 @@ export default defineConfig({
       }
     })
   ],
+  optimizeDeps: {
+    // Pre-bundle so the dev server doesn't discover it late and force a reload.
+    include: ['workbox-window']
+  },
   build: {
     outDir: 'www',
     emptyOutDir: true

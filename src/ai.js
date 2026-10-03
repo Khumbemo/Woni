@@ -1,6 +1,7 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.js?url';
 import { createWorker } from 'tesseract.js';
+import { parseJSON } from './utils.js';
 
 // Configure PDF.js Worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
@@ -193,38 +194,7 @@ export const aiMixin = {
   },
 
   parseJSON(raw) {
-    try {
-      let text = raw.trim();
-      // Remove markdown code blocks if present
-      if (text.includes('\`\`\`')) {
-        const matches = text.match(/\`\`\`(?:json)?\s*([\s\S]*?)\s*\`\`\`/i);
-        if (matches && matches[1]) {
-          text = matches[1];
-        } else {
-          text = text.replace(/\`\`\`[a-z]*\n/gi, '').replace(/\n\`\`\`/g, '');
-        }
-      }
-
-      // Attempt to find the first '{' and last '}' to strip any leading/trailing text
-      const start = text.indexOf('{');
-      const end = text.lastIndexOf('}');
-      if (start !== -1 && end !== -1) {
-        text = text.slice(start, end + 1);
-      }
-
-      return JSON.parse(text);
-    } catch (e) {
-      console.error('Failed to parse JSON', e, raw);
-      // Fallback: try to find an array if the object parse failed
-      try {
-        const startArr = raw.indexOf('[');
-        const endArr = raw.lastIndexOf(']');
-        if (startArr !== -1 && endArr !== -1) {
-          return { questions: JSON.parse(raw.slice(startArr, endArr + 1)) };
-        }
-      } catch (e2) { }
-      return {};
-    }
+    return parseJSON(raw);
   },
 
   /**

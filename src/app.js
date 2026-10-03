@@ -86,21 +86,29 @@ const app = {
     const toastRoot = document.getElementById('toast-mount');
     if (toastRoot) render(h(Toast, null), toastRoot);
 
+    // Guests are local-only: don't make them wait for Firebase to answer.
+    if (localStorage.getItem('woni_guest_mode')) this.enterApp();
+
     firebase.auth().onAuthStateChanged(async (user) => {
       this.state.user = user;
       this.updateAuthUI();
       if (user || localStorage.getItem('woni_guest_mode')) {
-        document.getElementById('app').classList.remove('hidden');
-        document.getElementById('auth-overlay').classList.add('hidden');
-        this.loadState();
-        if (this.state.isFirstRun) this.showOnboarding();
-        else this.updateDashboard();
-        this.showView(this.state.currentView);
+        this.enterApp();
       } else {
         document.getElementById('app').classList.remove('hidden');
         document.getElementById('auth-overlay').classList.remove('hidden');
       }
     });
+  },
+
+  /** Reveal the main app for a signed-in user or guest. */
+  enterApp() {
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('auth-overlay').classList.add('hidden');
+    this.loadState();
+    if (this.state.isFirstRun) this.showOnboarding();
+    else this.updateDashboard();
+    this.showView(this.state.currentView);
   },
 
   // --- State Loading ---
@@ -113,6 +121,7 @@ const app = {
       this.state.userExams = exams;
       this.state.activeExam = exams[0] || null;
       if (exams.length > 0) localStorage.setItem('woni_user_exams', JSON.stringify(exams));
+      this.syncLibExam();
       this.updateActiveExamBadge();
     }
     const apiKey = localStorage.getItem('woni_groq_key');
@@ -251,10 +260,19 @@ const app = {
     this.state.isFirstRun = false;
     localStorage.setItem('woni_user_exams', JSON.stringify(valid));
     localStorage.setItem('woni_setup_done', 'true');
+    this.syncLibExam();
     this.updateActiveExamBadge();
     this.hideSubView('onboarding-overlay');
     this.updateDashboard();
     this.showView('dashboard');
+  },
+
+  /** Keep the Library tab pointed at one of the user's selected exams. */
+  syncLibExam() {
+    const ids = this.state.userExams.map(ex => ex.id);
+    if (ids.length > 0 && !ids.includes(this.state.activeLibExam)) {
+      this.state.activeLibExam = ids[0];
+    }
   },
 
   // --- Settings ---

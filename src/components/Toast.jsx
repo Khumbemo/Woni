@@ -1,6 +1,8 @@
 import { h } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 
+let nextToastId = 0;
+
 const TOAST_COLORS = {
   error:   'linear-gradient(135deg, #ef4444, #dc2626)',
   success: 'linear-gradient(135deg, #10b981, #059669)',
@@ -13,7 +15,7 @@ export default function Toast() {
   useEffect(() => {
     const handleToast = (e) => {
       const { message, type = 'info' } = e.detail;
-      const id = Date.now();
+      const id = ++nextToastId;
       setToasts((prev) => [...prev, { id, message, type }]);
 
       setTimeout(() => {

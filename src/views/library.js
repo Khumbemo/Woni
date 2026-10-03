@@ -37,9 +37,11 @@ export const libraryMixin = {
     // Fetch from Firestore (graceful degradation)
     try {
       if (this.db && this.state.user) {
-        const snapshot = await this.db.collection('library_books')
-          .where('exam', '==', examId)
-          .get();
+        // Don't leave the shelf on a skeleton when offline or Firestore is slow.
+        const snapshot = await Promise.race([
+          this.db.collection('library_books').where('exam', '==', examId).get(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Cloud library timed out')), 5000)),
+        ]);
         snapshot.forEach(doc => { cloudBooks.push(doc.data()); });
       }
     } catch (e) {
@@ -49,6 +51,9 @@ export const libraryMixin = {
         console.error('Failed to fetch cloud books', e);
       }
     }
+
+    // A newer render (tab switch / search) started while we were waiting.
+    if (examId !== this.state.activeLibExam) return;
 
     // Group user books by subject
     const groupedUser = {};

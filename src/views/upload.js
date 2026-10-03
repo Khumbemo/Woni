@@ -2,6 +2,7 @@
  * Woni — Upload & Analysis View Module
  * Handles file uploads, AI analysis, analysis review, and the analysis chat assistant.
  */
+import { answerToLetter } from '../utils.js';
 
 export const uploadMixin = {
   updateUploadView() {
@@ -310,10 +311,7 @@ export const uploadMixin = {
     if (options.length < 2) issues.push('At least 2 options required');
     if (!explanation) issues.push('Explanation missing');
 
-    const answerUpper = answer.toUpperCase();
-    const byLetter = /^[A-Z]$/.test(answerUpper) ? options[answerUpper.charCodeAt(0) - 65] : null;
-    const answerMatchesOption = options.some(opt => String(opt).trim().toLowerCase() === answer.toLowerCase());
-    if (!answer || (!byLetter && !answerMatchesOption && !/^[A-Z]$/.test(answerUpper))) {
+    if (!answerToLetter({ options, answer })) {
       issues.push('Answer not aligned with options');
     }
 

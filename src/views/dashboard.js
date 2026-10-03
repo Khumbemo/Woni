@@ -1,6 +1,7 @@
 /**
  * Woni — Dashboard View Module
  */
+import { computeStreak, parseDuration, formatStudyTime } from '../utils.js';
 
 export const dashboardMixin = {
   async updateDashboard() {
@@ -20,10 +21,13 @@ export const dashboardMixin = {
     if (masteryEl) masteryEl.textContent = `${mastery}%`;
 
     const studyEl = document.getElementById('dash-study-time');
-    if (studyEl) studyEl.textContent = `${filtered.length * 20}m`;
+    if (studyEl) {
+      const seconds = filtered.reduce((sum, t) => sum + parseDuration(t.duration), 0);
+      studyEl.textContent = formatStudyTime(seconds);
+    }
 
     const streakEl = document.getElementById('dash-streak');
-    if (streakEl) streakEl.textContent = `${new Set(allTests.map(t => new Date(t.date).toDateString())).size}d`;
+    if (streakEl) streakEl.textContent = `${computeStreak(allTests.map(t => t.date))}d`;
 
     if (examId) {
       const topics = await this.dbGetFromIndex('topics', 'exam', examId);

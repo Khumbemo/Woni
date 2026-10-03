@@ -18,6 +18,9 @@ export const authMixin = {
       firebase.initializeApp(firebaseConfig);
     }
     this.db = firebase.firestore();
+    // Locally-generated records can contain undefined fields (e.g. a missing
+    // explanation); Firestore rejects those unless told to drop them.
+    try { this.db.settings({ ignoreUndefinedProperties: true, merge: true }); } catch {}
     this.storage = firebase.storage();
   },
 
@@ -67,14 +70,22 @@ export const authMixin = {
     btn.textContent = 'Processing...';
 
     try {
-      // Simple logic: try to sign in, if fails, try to sign up
+      // Try to sign in; if that fails, try to sign up. With Firebase email
+      // enumeration protection (on by default for new projects) an unknown
+      // email reports auth/invalid-credential instead of auth/user-not-found.
       try {
         await firebase.auth().signInWithEmailAndPassword(email, password);
       } catch (e) {
-        if (e.code === 'auth/user-not-found') {
-          await firebase.auth().createUserWithEmailAndPassword(email, password);
-        } else {
+        if (!['auth/user-not-found', 'auth/invalid-credential', 'auth/invalid-login-credentials'].includes(e.code)) {
           throw e;
+        }
+        try {
+          await firebase.auth().createUserWithEmailAndPassword(email, password);
+        } catch (createErr) {
+          if (createErr.code === 'auth/email-already-in-use') {
+            throw new Error('Incorrect password for this account.');
+          }
+          throw createErr;
         }
       }
       localStorage.removeItem('woni_guest_mode');
@@ -95,8 +106,6 @@ export const authMixin = {
 
   continueAsGuest() {
     localStorage.setItem('woni_guest_mode', 'true');
-    document.getElementById('auth-overlay').classList.add('hidden');
-    this.loadState();
-    this.updateDashboard();
+    this.enterApp();
   }
 };

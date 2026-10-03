@@ -7,10 +7,11 @@
 export const particleMixin = {
   _particleAnimId: null,
   _particlesPaused: false,
+  _particleLoop: null,
 
   initParticles() {
     const canvas = document.getElementById('particle-canvas');
-    if (!canvas) return;
+    if (!canvas || this._particleLoop) return;
     const ctx = canvas.getContext('2d');
     let particles = [];
     const mouse = { x: null, y: null, radius: 150 };
@@ -75,6 +76,7 @@ export const particleMixin = {
     };
 
     createParticles();
+    this._particleLoop = animate;
     animate();
 
     // Pause when tab is hidden (battery optimization)
@@ -98,7 +100,8 @@ export const particleMixin = {
   resumeParticles() {
     if (!this._particlesPaused) return;
     this._particlesPaused = false;
-    // Re-trigger the animation loop
-    this.initParticles();
+    // Restart the existing loop; re-running initParticles() would stack
+    // duplicate window/document listeners on every resume.
+    if (this._particleLoop && !this._particleAnimId) this._particleLoop();
   },
 };

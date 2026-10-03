@@ -4,10 +4,14 @@
  */
 import { describe, it, expect } from 'vitest';
 
-// We can't directly import from app.js since it has DOM dependencies.
-// Extract the testable functions inline here for isolated testing.
+import { uploadMixin } from '../views/upload.js';
+import { shuffle, answerToLetter, computeStreak, parseDuration, formatStudyTime, sm2, parseJSON } from '../utils.js';
 
-// --- escapeHtml ---
+// app.js / ai.js pull in DOM, Firebase and pdf.js, so test the pure pieces directly.
+const { validateQuestion, validateTopic } = uploadMixin;
+const isRelevantToExam = (...args) => uploadMixin.isRelevantToExam.apply(uploadMixin, args);
+
+// --- escapeHtml (mirrors app.escapeHtml) ---
 function escapeHtml(text) {
   return String(text ?? '')
     .replace(/&/g, '&amp;')
@@ -15,95 +19,6 @@ function escapeHtml(text) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
-}
-
-// --- parseJSON (copied from ai.js logic) ---
-function parseJSON(raw) {
-  try {
-    let text = raw.trim();
-    if (text.includes('\`\`\`')) {
-      const matches = text.match(/\`\`\`(?:json)?\s*([\s\S]*?)\s*\`\`\`/i);
-      if (matches && matches[1]) text = matches[1];
-      else text = text.replace(/\`\`\`[a-z]*\n/gi, '').replace(/\n\`\`\`/g, '');
-    }
-    const start = text.indexOf('{');
-    const end = text.lastIndexOf('}');
-    if (start !== -1 && end !== -1) text = text.slice(start, end + 1);
-    return JSON.parse(text);
-  } catch (e) {
-    try {
-      const startArr = raw.indexOf('[');
-      const endArr = raw.lastIndexOf(']');
-      if (startArr !== -1 && endArr !== -1) return { questions: JSON.parse(raw.slice(startArr, endArr + 1)) };
-    } catch (e2) {}
-    return {};
-  }
-}
-
-// --- validateQuestion ---
-function validateQuestion(question) {
-  const issues = [];
-  const options = Array.isArray(question.options) ? question.options.filter(Boolean) : [];
-  const text = String(question.text || '').trim();
-  const answer = String(question.answer || '').trim();
-  const explanation = String(question.explanation || '').trim();
-  if (text.length < 12) issues.push('Question text too short');
-  if (options.length < 2) issues.push('At least 2 options required');
-  if (!explanation) issues.push('Explanation missing');
-  const answerUpper = answer.toUpperCase();
-  const byLetter = /^[A-Z]$/.test(answerUpper) ? options[answerUpper.charCodeAt(0) - 65] : null;
-  const answerMatchesOption = options.some(opt => String(opt).trim().toLowerCase() === answer.toLowerCase());
-  if (!answer || (!byLetter && !answerMatchesOption && !/^[A-Z]$/.test(answerUpper))) issues.push('Answer not aligned with options');
-  let confidence = typeof question.confidence === 'number' ? question.confidence : 0.65;
-  if (issues.length === 0) confidence += 0.2;
-  if (issues.length >= 2) confidence -= 0.2;
-  confidence = Math.max(0.2, Math.min(0.98, confidence));
-  return { ...question, options, issues, confidence };
-}
-
-// --- validateTopic ---
-function validateTopic(topic) {
-  const issues = [];
-  const name = String(topic.name || '').trim();
-  if (!name) issues.push('Topic name missing');
-  const frequency = Math.max(0, Math.min(100, Number(topic.frequency || 0)));
-  const priority = ['high', 'med', 'low'].includes(String(topic.priority || '').toLowerCase())
-    ? String(topic.priority).toLowerCase()
-    : (frequency >= 35 ? 'high' : frequency >= 20 ? 'med' : 'low');
-  let confidence = typeof topic.confidence === 'number' ? topic.confidence : 0.7;
-  if (issues.length > 0) confidence -= 0.25;
-  confidence = Math.max(0.2, Math.min(0.98, confidence));
-  return { ...topic, name, frequency, priority, issues, confidence };
-}
-
-// --- isRelevantToExam ---
-const EXAM_TOPIC_GUARD = {
-  csir_net: ['biochem', 'molecular', 'cell', 'genetic', 'ecology', 'evolution', 'plant', 'animal', 'physiology', 'immunology', 'microbiology', 'biotechnology'],
-  npsc_ncs: ['history', 'polity', 'geography', 'economy', 'nagaland', 'current affairs', 'aptitude'],
-};
-function isRelevantToExam(examId, topicName = '', questionText = '') {
-  const guards = EXAM_TOPIC_GUARD[examId];
-  if (!guards || guards.length === 0) return true;
-  const hay = `${String(topicName).toLowerCase()} ${String(questionText).toLowerCase()}`;
-  return guards.some(g => hay.includes(g));
-}
-
-// --- SM-2 Algorithm ---
-function sm2(quality, card) {
-  let { interval, repetition, ease } = card;
-  ease = ease || 2.5;
-  if (quality >= 3) {
-    if (repetition === 0) interval = 1;
-    else if (repetition === 1) interval = 6;
-    else interval = Math.round(interval * ease);
-    repetition++;
-  } else {
-    repetition = 0;
-    interval = 1;
-  }
-  ease = ease + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
-  ease = Math.max(1.3, ease);
-  return { interval, repetition, ease };
 }
 
 // --- Freemium hash ---
@@ -260,5 +175,79 @@ describe('Freemium hash', () => {
 
   it('different counts produce different hashes', () => {
     expect(freemiumHash(1)).not.toBe(freemiumHash(2));
+  });
+});
+
+describe('validateQuestion answer alignment', () => {
+  const base = { text: 'Which organelle produces ATP?', explanation: 'Oxidative phosphorylation.' };
+
+  it('flags a letter outside the option range', () => {
+    const q = validateQuestion({ ...base, options: ['Mitochondria', 'Nucleus'], answer: 'D' });
+    expect(q.issues).toContain('Answer not aligned with options');
+  });
+
+  it('accepts the answer given as option text', () => {
+    const q = validateQuestion({ ...base, options: ['Mitochondria', 'Nucleus'], answer: 'Mitochondria' });
+    expect(q.issues).toHaveLength(0);
+  });
+});
+
+describe('answerToLetter', () => {
+  const options = ['A protein', 'Lipid', 'Carbohydrate', 'Nucleic acid'];
+  it('maps bare and decorated letters', () => {
+    expect(answerToLetter({ options, answer: 'b' })).toBe('B');
+    expect(answerToLetter({ options, answer: '(C)' })).toBe('C');
+    expect(answerToLetter({ options, answer: 'D) Nucleic acid' })).toBe('D');
+    expect(answerToLetter({ options, answer: 'Option B' })).toBe('B');
+  });
+  it('prefers exact option text over a leading letter', () => {
+    expect(answerToLetter({ options: ['Lipid', 'A protein'], answer: 'A protein' })).toBe('B');
+  });
+  it('returns null when unmappable', () => {
+    expect(answerToLetter({ options, answer: 'E' })).toBeNull();
+    expect(answerToLetter({ options, answer: '' })).toBeNull();
+  });
+});
+
+describe('shuffle', () => {
+  it('keeps every element exactly once', () => {
+    const input = [1, 2, 3, 4, 5, 6, 7, 8];
+    expect(shuffle(input).sort((a, b) => a - b)).toEqual(input);
+  });
+  it('is roughly uniform (each element lands in position 0 ~1/n of the time)', () => {
+    const n = 4, trials = 20000, counts = Array(n).fill(0);
+    for (let t = 0; t < trials; t++) counts[shuffle([0, 1, 2, 3])[0]]++;
+    counts.forEach(c => expect(Math.abs(c / trials - 1 / n)).toBeLessThan(0.02));
+  });
+});
+
+describe('computeStreak', () => {
+  const day = 24 * 60 * 60 * 1000;
+  const now = new Date(2026, 5, 15, 12).getTime();
+  it('counts consecutive days ending today', () => {
+    expect(computeStreak([now, now - day, now - 2 * day], now)).toBe(3);
+  });
+  it('still counts when the latest session was yesterday', () => {
+    expect(computeStreak([now - day, now - 2 * day], now)).toBe(2);
+  });
+  it('breaks on a gap and ignores duplicate sessions on one day', () => {
+    expect(computeStreak([now, now, now - 2 * day, now - 3 * day], now)).toBe(1);
+  });
+  it('is 0 when the last session was over a day ago', () => {
+    expect(computeStreak([now - 3 * day], now)).toBe(0);
+  });
+});
+
+describe('study time helpers', () => {
+  it('parses mm:ss and h:mm:ss', () => {
+    expect(parseDuration('05:30')).toBe(330);
+    expect(parseDuration('1:00:00')).toBe(3600);
+    expect(parseDuration('')).toBe(0);
+    expect(parseDuration(undefined)).toBe(0);
+  });
+  it('formats minutes and hours', () => {
+    expect(formatStudyTime(45 * 60)).toBe('45m');
+    expect(formatStudyTime(125 * 60)).toBe('2h 5m');
+    expect(formatStudyTime(120 * 60)).toBe('2h');
   });
 });
