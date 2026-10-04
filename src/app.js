@@ -317,6 +317,22 @@ const app = {
       .replace(/'/g, '&#39;');
   },
 
+  /** Ask the user to confirm. Async so hosts without native dialogs can swap in their own. */
+  async confirmAction(message) {
+    return window.confirm(message);
+  },
+
+  /** Offer a generated file to the user. */
+  saveFile(filename, blob) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    // Revoking synchronously can cancel the download in some browsers.
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  },
+
   showToast(message, type = 'info') {
     window.dispatchEvent(new CustomEvent('woni-toast', { detail: { message, type } }));
   },

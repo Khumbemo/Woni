@@ -5,3 +5,4 @@ test-results/
 playwright-report/
 dev-dist/
 screenshots/
+dist-artifact/

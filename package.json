@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "npx playwright test",
     "test:unit": "vitest run",
-    "test:report": "npx playwright show-report"
+    "test:report": "npx playwright show-report",
+    "build:artifact": "node artifact/build.mjs"
   },
   "repository": {
     "type": "git",

@@ -231,8 +231,8 @@ export const practiceMixin = {
     }, 1000);
   },
 
-  exitSession(force) {
-    if (force === 'force' || confirm('Are you sure you want to exit?')) {
+  async exitSession(force) {
+    if (force === 'force' || await this.confirmAction('Are you sure you want to exit?')) {
       if (this.state.sessionTimer) clearInterval(this.state.sessionTimer);
       this.hideSubView('active-session-overlay');
       if (this.resumeParticles) this.resumeParticles();
@@ -279,6 +279,6 @@ export const practiceMixin = {
       doc.text(`Your Answer: ${s.answers[i] || 'None'} | Correct: ${answerToLetter(q) || q.answer}`, 25, y);
       y += 10;
     });
-    doc.save(`Woni_Result_${Date.now()}.pdf`);
+    this.saveFile(`Woni_Result_${Date.now()}.pdf`, doc.output('blob'));
   },
 };

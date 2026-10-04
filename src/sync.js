@@ -19,7 +19,7 @@ export const syncMixin = {
       const doc = await userRef.get();
       if (doc.exists) {
         const cloudData = doc.data();
-        if (cloudData.updatedAt && confirm('Cloud data found. Do you want to overwrite local data with cloud backup?')) {
+        if (cloudData.updatedAt && await this.confirmAction('Cloud data found. Do you want to overwrite local data with cloud backup?')) {
           await this.applyCloudData(cloudData);
           this.showToast('Sync Complete: Data pulled from cloud.', 'success');
           location.reload();
@@ -78,13 +78,7 @@ export const syncMixin = {
       exportDate: new Date().toISOString()
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `woni_backup_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    // Revoking synchronously can cancel the download in some browsers.
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    this.saveFile(`woni_backup_${new Date().toISOString().slice(0, 10)}.json`, blob);
   },
 
   async importData(event) {
@@ -95,7 +89,7 @@ export const syncMixin = {
     try {
       const text = await file.text();
       const data = JSON.parse(text);
-      if (confirm('Importing data will overwrite existing records. Continue?')) {
+      if (await this.confirmAction('Importing data will overwrite existing records. Continue?')) {
         const stores = ['papers', 'questions', 'flashcards', 'progress', 'topics', 'mock_tests'];
         for (const store of stores) {
           await this.state.db.clear(store);
@@ -117,8 +111,8 @@ export const syncMixin = {
     }
   },
 
-  clearAllData() {
-    if (confirm('DANGER: This will delete ALL your study data, papers, and progress. Continue?')) {
+  async clearAllData() {
+    if (await this.confirmAction('DANGER: This will delete ALL your study data, papers, and progress. Continue?')) {
       localStorage.clear();
       indexedDB.deleteDatabase('woni_db');
       location.reload();
