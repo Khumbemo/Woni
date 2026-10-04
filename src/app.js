@@ -68,6 +68,7 @@ const app = {
     session: null,
     activeLibExam: 'csir_net',
     user: null,
+    isAdmin: false,
   },
 
   // --- Initialization ---
@@ -91,6 +92,7 @@ const app = {
 
     firebase.auth().onAuthStateChanged(async (user) => {
       this.state.user = user;
+      await this.refreshAdminStatus(user);
       this.updateAuthUI();
       if (user || localStorage.getItem('woni_guest_mode')) {
         this.enterApp();
@@ -259,6 +261,7 @@ const app = {
     this.state.activeExam = valid[0];
     this.state.isFirstRun = false;
     localStorage.setItem('woni_user_exams', JSON.stringify(valid));
+    localStorage.setItem('woni_exams_updated', String(Date.now()));
     localStorage.setItem('woni_setup_done', 'true');
     this.syncLibExam();
     this.updateActiveExamBadge();
@@ -291,6 +294,7 @@ const app = {
       localStorage.removeItem('woni_groq_key');
       this.showToast('API Key cleared.', 'info');
     }
+    this.updateSettingsUI();
   },
 
   setTheme(theme) {

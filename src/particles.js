@@ -34,9 +34,6 @@ export const particleMixin = {
         this.density = Math.random() * 30 + 1;
         this.speedX = Math.random() * 0.5 - 0.25;
         this.speedY = Math.random() * 0.5 - 0.25;
-        this.color = document.body.classList.contains('dark-theme')
-          ? 'rgba(255,255,255,0.15)'
-          : 'rgba(0,0,0,0.08)';
       }
       update() {
         this.x += this.speedX;
@@ -54,8 +51,8 @@ export const particleMixin = {
         if (this.y > canvas.height) this.y = 0;
         if (this.y < 0) this.y = canvas.height;
       }
-      draw() {
-        ctx.fillStyle = this.color;
+      draw(color) {
+        ctx.fillStyle = color;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.fill();
@@ -71,7 +68,9 @@ export const particleMixin = {
     const animate = () => {
       if (self._particlesPaused) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      particles.forEach(p => { p.update(); p.draw(); });
+      // Read the theme each frame so a theme switch recolours the particles.
+      const color = document.body.classList.contains('dark-theme') ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)';
+      particles.forEach(p => { p.update(); p.draw(color); });
       self._particleAnimId = requestAnimationFrame(animate);
     };
 

@@ -29,6 +29,7 @@ export const routerMixin = {
     if (viewId === 'upload') this.updateUploadView();
     if (viewId === 'practice') this.updatePracticeView();
     if (viewId === 'progress') this.updateProgressView();
+    if (viewId === 'settings') this.updateSettingsUI();
     this.updateLucide();
   },
 

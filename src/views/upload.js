@@ -104,6 +104,12 @@ export const uploadMixin = {
       if (fill) fill.style.width = '90%';
       if (status) status.textContent = 'AI is analyzing questions...';
       const analysis = await this.performAIAnalysis(examId, extractedTexts);
+      // The AI sometimes returns questions but no topic list; derive one from the questions.
+      if ((analysis.topics || []).length === 0 && (analysis.questions || []).length > 0) {
+        analysis.topics = this.makeFallbackTopics(analysis.questions).map(t => ({ ...t, confidence: 0.6 }));
+      }
+      // Only a completed analysis uses up one of the free analyses.
+      this.incrementFreemium();
 
       this.state.latestAnalysisContext = {
         examId,
@@ -113,8 +119,8 @@ export const uploadMixin = {
       };
 
       // Validate before presenting for review
-      const validatedQuestions = (analysis?.questions || []).map(q => this.validateQuestion(q));
-      const validatedTopics = (analysis?.topics || []).map(t => this.validateTopic(t));
+      const validatedQuestions = (analysis?.questions || []).map(q => this.validateQuestion(q, examId));
+      const validatedTopics = (analysis?.topics || []).map(t => this.validateTopic(t, examId));
 
       this.state.pendingAnalysis = {
         examId,
@@ -300,7 +306,7 @@ export const uploadMixin = {
   },
 
   // --- Validation ---
-  validateQuestion(question) {
+  validateQuestion(question, examId) {
     const issues = [];
     const options = Array.isArray(question.options) ? question.options.filter(Boolean) : [];
     const text = String(question.text || '').trim();
@@ -314,6 +320,9 @@ export const uploadMixin = {
     if (!answerToLetter({ options, answer })) {
       issues.push('Answer not aligned with options');
     }
+    if (examId && !this.isRelevantToExam(examId, question.topic, text)) {
+      issues.push('Possibly outside the exam syllabus');
+    }
 
     let confidence = typeof question.confidence === 'number' ? question.confidence : 0.65;
     if (issues.length === 0) confidence += 0.2;
@@ -323,10 +332,11 @@ export const uploadMixin = {
     return { ...question, options, issues, confidence };
   },
 
-  validateTopic(topic) {
+  validateTopic(topic, examId) {
     const issues = [];
     const name = String(topic.name || '').trim();
     if (!name) issues.push('Topic name missing');
+    else if (examId && !this.isRelevantToExam(examId, name)) issues.push('Possibly outside the exam syllabus');
     const frequency = Math.max(0, Math.min(100, Number(topic.frequency || 0)));
     const priority = ['high', 'med', 'low'].includes(String(topic.priority || '').toLowerCase())
       ? String(topic.priority).toLowerCase()
@@ -341,12 +351,17 @@ export const uploadMixin = {
     return { ...topic, name, frequency, priority, note, issues, confidence };
   },
 
+  /**
+   * Keyword stems per exam, matched against topic names and question text.
+   * They cover the official syllabus units the AI is asked to use (see
+   * SYLLABUS_HINTS in ai.js), so a miss only flags an item for review.
+   */
   EXAM_TOPIC_GUARD: {
-    csir_net: ['biochem', 'molecular', 'cell', 'genetic', 'ecology', 'evolution', 'plant', 'animal', 'physiology', 'immunology', 'microbiology', 'biotechnology', 'biostat', 'bioinformatics', 'development', 'taxonomy'],
-    gate_ls: ['biochem', 'molecular', 'cell', 'genetic', 'ecology', 'evolution', 'plant', 'animal', 'physiology', 'microbiology', 'biotechnology'],
-    ugc_net_env: ['environment', 'ecology', 'pollution', 'biodiversity', 'conservation', 'climate', 'sustainability', 'ecosystem', 'forest', 'wildlife'],
-    npsc_ncs: ['history', 'polity', 'geography', 'economy', 'nagaland', 'current affairs', 'aptitude'],
-    slet_ls: ['biochem', 'molecular', 'cell', 'genetic', 'ecology', 'evolution', 'plant', 'animal', 'physiology', 'immunology', 'microbiology', 'biotechnology', 'life science'],
+    csir_net: ['aptitude', 'biochem', 'molecul', 'cell', 'genetic', 'gene', 'inherit', 'ecolog', 'evolution', 'behaviour', 'behavior', 'plant', 'animal', 'physiolog', 'immun', 'microb', 'biotech', 'biostat', 'bioinformatic', 'develop', 'taxonom', 'divers', 'applied biology', 'method', 'protein', 'enzyme', 'dna', 'rna', 'metabol'],
+    gate_ls: ['aptitude', 'chemistry', 'biochem', 'molecul', 'cell', 'genetic', 'gene', 'botany', 'plant', 'zoology', 'animal', 'microb', 'food', 'ecolog', 'evolution', 'physiolog', 'biotech', 'enzyme', 'protein', 'metabol'],
+    ugc_net_env: ['environment', 'ecolog', 'pollution', 'biodiversity', 'conservation', 'climate', 'sustainab', 'ecosystem', 'forest', 'wildlife', 'chemistry', 'management', 'policy', 'eia', 'impact assessment', 'audit', 'waste', 'water', 'soil', 'air', 'energy'],
+    npsc_ncs: ['english', 'general knowledge', 'history', 'polity', 'constitution', 'geography', 'economy', 'economic', 'nagaland', 'northeast', 'current affairs', 'aptitude', 'reasoning'],
+    slet_ls: ['aptitude', 'biochem', 'molecul', 'cell', 'genetic', 'gene', 'ecolog', 'evolution', 'plant', 'animal', 'physiolog', 'immun', 'microb', 'biotech', 'taxonom', 'systematic', 'life science', 'enzyme', 'protein', 'metabol'],
   },
 
   isRelevantToExam(examId, topicName = '', questionText = '') {
@@ -354,32 +369,6 @@ export const uploadMixin = {
     if (!guards || guards.length === 0) return true;
     const hay = `${String(topicName).toLowerCase()} ${String(questionText).toLowerCase()}`;
     return guards.some(g => hay.includes(g));
-  },
-
-  async secondPassVerify(examId, questions, topics) {
-    try {
-      const payload = { examId, questions: questions.slice(0, 40), topics: topics.slice(0, 20) };
-      const prompt = `You are a strict exam-data validator. Fix malformed items and improve quality.\nReturn ONLY JSON with same shape:\n{"questions":[{text,options,answer,topic,difficulty,explanation,confidence}],"topics":[{name,frequency,priority,focusReason,note,confidence}]}\nInput JSON:\n${JSON.stringify(payload)}`;
-      const resp = await this.groqCall(prompt);
-      const parsed = this.parseJSON(resp);
-      return {
-        questions: Array.isArray(parsed.questions) ? parsed.questions : questions,
-        topics: Array.isArray(parsed.topics) ? parsed.topics : topics,
-      };
-    } catch (e) {
-      return { questions, topics };
-    }
-  },
-
-  async getImportantTopics(examId) {
-    if (!examId) return [];
-    const topics = await this.dbGetFromIndex('topics', 'exam', examId);
-    const important = topics
-      .filter(t => (t.frequency || 0) >= 40 || ['high', 'med'].includes((t.priority || '').toLowerCase()))
-      .sort((a, b) => (b.frequency || 0) - (a.frequency || 0))
-      .slice(0, 6);
-    if (important.length > 0) return important;
-    return topics.sort((a, b) => (b.frequency || 0) - (a.frequency || 0)).slice(0, 6);
   },
 
   makeFallbackTopics(questions = []) {

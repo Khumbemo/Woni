@@ -5,10 +5,11 @@
 import { describe, it, expect } from 'vitest';
 
 import { uploadMixin } from '../views/upload.js';
-import { shuffle, answerToLetter, computeStreak, parseDuration, formatStudyTime, sm2, parseJSON } from '../utils.js';
+import { shuffle, answerToLetter, computeStreak, parseDuration, formatStudyTime, sm2, parseJSON, planSync, makeSyncId } from '../utils.js';
 
 // app.js / ai.js pull in DOM, Firebase and pdf.js, so test the pure pieces directly.
-const { validateQuestion, validateTopic } = uploadMixin;
+const validateQuestion = (...a) => uploadMixin.validateQuestion.apply(uploadMixin, a);
+const validateTopic = (...a) => uploadMixin.validateTopic.apply(uploadMixin, a);
 const isRelevantToExam = (...args) => uploadMixin.isRelevantToExam.apply(uploadMixin, args);
 
 // --- escapeHtml (mirrors app.escapeHtml) ---
@@ -249,5 +250,68 @@ describe('study time helpers', () => {
     expect(formatStudyTime(45 * 60)).toBe('45m');
     expect(formatStudyTime(125 * 60)).toBe('2h 5m');
     expect(formatStudyTime(120 * 60)).toBe('2h');
+  });
+});
+
+describe('syllabus relevance flag', () => {
+  const q = { text: 'Which enzyme unwinds DNA at the replication fork?', options: ['Helicase', 'Ligase'], answer: 'A', explanation: 'Helicase separates strands.' };
+
+  it('accepts the official CSIR NET unit names the AI is told to use', () => {
+    for (const unit of ['Molecules & Interaction', 'Cellular Organization', 'Inheritance Biology', 'Diversity of Life Forms', 'Methods in Biology', 'Evolution & Behaviour']) {
+      expect(isRelevantToExam('csir_net', unit)).toBe(true);
+    }
+  });
+
+  it('flags but keeps an off-syllabus item', () => {
+    const t = validateTopic({ name: 'Indian Polity', frequency: 40 }, 'csir_net');
+    expect(t.issues).toContain('Possibly outside the exam syllabus');
+    const ok = validateQuestion({ ...q, topic: 'Molecular Biology' }, 'csir_net');
+    expect(ok.issues).toHaveLength(0);
+  });
+});
+
+describe('flashcard rating buttons (SM-2 qualities)', () => {
+  const card = { interval: 6, repetition: 2, ease: 2.5 };
+  it('Hard (3) still advances the card but lowers ease', () => {
+    const r = sm2(3, card);
+    expect(r.repetition).toBe(3);
+    expect(r.interval).toBe(15);
+    expect(r.ease).toBeCloseTo(2.36);
+  });
+  it('Good (4) keeps ease unchanged', () => {
+    expect(sm2(4, card).ease).toBeCloseTo(2.5);
+  });
+  it('Again (0) resets', () => {
+    expect(sm2(0, card)).toMatchObject({ repetition: 0, interval: 1 });
+  });
+});
+
+describe('planSync', () => {
+  const rec = (syncId, updatedAt) => ({ syncId, updatedAt });
+  it('pushes local changes since the last sync and pulls unseen cloud records', () => {
+    const { push, pull } = planSync([rec('a', 50), rec('b', 200)], [rec('c', 150)], 100);
+    expect(push.map(r => r.syncId)).toEqual(['b']);
+    expect(pull.map(r => r.syncId)).toEqual(['c']);
+  });
+  it('newest version wins when both sides changed', () => {
+    const local = [rec('x', 300), rec('y', 200)];
+    const cloud = [rec('x', 250), rec('y', 400)];
+    const { push, pull } = planSync(local, cloud, 100);
+    expect(push.map(r => r.syncId)).toEqual(['x']);
+    expect(pull.map(r => r.syncId)).toEqual(['y']);
+  });
+  it('first sync pushes everything and skips cloud copies that are not newer', () => {
+    const { push, pull } = planSync([rec('a', 10)], [rec('a', 10)], 0);
+    expect(push).toHaveLength(1);
+    expect(pull).toHaveLength(0);
+  });
+});
+
+describe('makeSyncId', () => {
+  it('derives a stable, slash-free id for keyed stores', () => {
+    expect(makeSyncId('topics', { id: 'csir_net_Cell / Molecular' })).toBe('topics:csir_net_Cell%20%2F%20Molecular');
+  });
+  it('uses a random id for auto-incremented stores', () => {
+    expect(makeSyncId('questions', { id: 5 }, () => 'uuid-1')).toBe('uuid-1');
   });
 });

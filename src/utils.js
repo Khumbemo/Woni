@@ -119,3 +119,41 @@ export function parseJSON(raw) {
     return {};
   }
 }
+
+/**
+ * Stores that sync to the cloud, and whether their local keys are
+ * auto-incremented (device-specific) or meaningful (e.g. "csir_net_Genetics").
+ */
+export const SYNC_STORES = {
+  papers: { autoKey: true },
+  questions: { autoKey: true },
+  flashcards: { autoKey: true },
+  mock_tests: { autoKey: true },
+  topics: { autoKey: false },
+  progress: { autoKey: false },
+};
+
+/** Stable cross-device id for a record; also its Firestore document id. */
+export function makeSyncId(store, record, uuid = () => crypto.randomUUID()) {
+  if (SYNC_STORES[store] && !SYNC_STORES[store].autoKey && record.id != null) {
+    // Same topic on two devices must map to the same document. Encoding keeps '/' out of the doc id.
+    return `${store}:${encodeURIComponent(String(record.id))}`;
+  }
+  return uuid();
+}
+
+/**
+ * Decide what to upload and download for one store. Newest `updatedAt` wins.
+ * @param local       every local record (each has syncId, updatedAt)
+ * @param cloud       cloud records changed since lastSync
+ * @param lastSync    ms timestamp of the previous successful sync (0 = never)
+ */
+export function planSync(local, cloud, lastSync = 0) {
+  const localById = new Map(local.map(r => [r.syncId, r]));
+  const cloudById = new Map(cloud.map(r => [r.syncId, r]));
+  const push = local.filter(r =>
+    (r.updatedAt || 0) > lastSync && !((cloudById.get(r.syncId)?.updatedAt || 0) > (r.updatedAt || 0)));
+  const pull = cloud.filter(r =>
+    !((localById.get(r.syncId)?.updatedAt || 0) >= (r.updatedAt || 0)));
+  return { push, pull };
+}

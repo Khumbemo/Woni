@@ -1,27 +1,45 @@
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
-import 'firebase/compat/firestore';
-import 'firebase/compat/storage';
+
+/**
+ * Firebase web config. Override any value with a VITE_FIREBASE_* variable in
+ * .env (see .env.example). The appId default is the project's Android app;
+ * register a Web app in the Firebase console and set VITE_FIREBASE_APP_ID to
+ * its id so web-only services (Analytics, App Check) work.
+ */
+const env = import.meta.env || {};
+export const firebaseConfig = {
+  apiKey: env.VITE_FIREBASE_API_KEY || 'AIzaSyBCc6JdOtYhgvINHgdNHyIMVBw_8v1INgk',
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || 'woni-f6a2a.firebaseapp.com',
+  projectId: env.VITE_FIREBASE_PROJECT_ID || 'woni-f6a2a',
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || 'woni-f6a2a.firebasestorage.app',
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || '802707408926',
+  appId: env.VITE_FIREBASE_APP_ID || '1:802707408926:android:f561524d07bee95524c60f',
+};
 
 export const authMixin = {
   initFirebase() {
-    // Replace with your actual Firebase config
-    const firebaseConfig = {
-      apiKey: "AIzaSyBCc6JdOtYhgvINHgdNHyIMVBw_8v1INgk",
-      authDomain: "woni-f6a2a.firebaseapp.com",
-      projectId: "woni-f6a2a",
-      storageBucket: "woni-f6a2a.firebasestorage.app",
-      messagingSenderId: "802707408926",
-      appId: "1:802707408926:android:f561524d07bee95524c60f"
-    };
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
     }
-    this.db = firebase.firestore();
-    // Locally-generated records can contain undefined fields (e.g. a missing
-    // explanation); Firestore rejects those unless told to drop them.
-    try { this.db.settings({ ignoreUndefinedProperties: true, merge: true }); } catch {}
-    this.storage = firebase.storage();
+  },
+
+  /** Firestore, loaded on first use (guests who never sync or browse cloud books skip it). */
+  getDb() {
+    this._dbPromise ??= import('firebase/compat/firestore').then(() => {
+      const db = firebase.firestore();
+      // Locally-generated records can contain undefined fields (e.g. a missing
+      // explanation); Firestore rejects those unless told to drop them.
+      try { db.settings({ ignoreUndefinedProperties: true, merge: true }); } catch {}
+      return db;
+    });
+    return this._dbPromise;
+  },
+
+  /** Firebase Storage, loaded on first use (admin uploads only). */
+  getStorage() {
+    this._storagePromise ??= import('firebase/compat/storage').then(() => firebase.storage());
+    return this._storagePromise;
   },
 
   updateAuthUI() {
@@ -39,7 +57,7 @@ export const authMixin = {
         authBtn.onclick = () => this.signOut();
       }
       if (syncContainer) syncContainer.classList.remove('hidden');
-      if (adminPanel) adminPanel.classList.remove('hidden');
+      if (adminPanel) adminPanel.classList.toggle('hidden', !this.state.isAdmin);
     } else {
       if (statusEl) statusEl.textContent = 'Cloud Sync (Offline)';
       if (emailEl) emailEl.textContent = 'Not signed in';
@@ -49,6 +67,18 @@ export const authMixin = {
       }
       if (syncContainer) syncContainer.classList.add('hidden');
       if (adminPanel) adminPanel.classList.add('hidden');
+    }
+  },
+
+  /** Admins carry an `admin: true` custom claim (set with scripts/set-admin.mjs). */
+  async refreshAdminStatus(user) {
+    this.state.isAdmin = false;
+    if (!user?.getIdTokenResult) return;
+    try {
+      const { claims } = await user.getIdTokenResult();
+      this.state.isAdmin = claims.admin === true;
+    } catch (e) {
+      console.warn('Could not read account claims', e);
     }
   },
 

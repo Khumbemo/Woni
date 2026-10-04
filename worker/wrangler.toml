@@ -2,6 +2,22 @@ name = "woni-ai-proxy"
 main = "index.js"
 compatibility_date = "2024-01-01"
 
+# GROQ_API_KEY is a secret, never put it here:
+#   wrangler secret put GROQ_API_KEY
+
 [vars]
-# GROQ_API_KEY should be set as a secret, not here.
-# Run: wrangler secret put GROQ_API_KEY
+# Comma-separated origins allowed to call the proxy (defaults are in index.js).
+# ALLOWED_ORIGINS = "https://woni-f6a2a.web.app,https://localhost"
+DAILY_LIMIT = "30"
+
+# Burst limit: 10 requests per IP per minute.
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
+
+# Daily per-IP quota. Create the namespace, then paste its id here:
+#   wrangler kv namespace create USAGE
+# [[kv_namespaces]]
+# binding = "USAGE"
+# id = "<id from the command above>"

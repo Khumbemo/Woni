@@ -6,3 +6,5 @@ playwright-report/
 dev-dist/
 screenshots/
 dist-artifact/
+service-account*.json
+.env

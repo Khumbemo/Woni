@@ -4,7 +4,6 @@
  */
 import { h, render } from 'preact';
 import FocusTimer from '../components/FocusTimer.jsx';
-import { jsPDF } from 'jspdf';
 import { shuffle, answerToLetter, sm2 } from '../utils.js';
 
 export const practiceMixin = {
@@ -122,9 +121,10 @@ export const practiceMixin = {
       `;
       footer.innerHTML = `
         <div class="sm2-btns hidden" id="sm2-btns">
+          <!-- SM-2 quality: 0 = forgot (reset), 3 = recalled with difficulty, 4 = after hesitation, 5 = perfect -->
           <button class="btn danger" data-action="rateCard" data-param="0">Again</button>
-          <button class="btn" style="color:var(--gold)" data-action="rateCard" data-param="2">Hard</button>
-          <button class="btn" style="color:var(--green)" data-action="rateCard" data-param="3">Good</button>
+          <button class="btn" style="color:var(--gold)" data-action="rateCard" data-param="3">Hard</button>
+          <button class="btn" style="color:var(--green)" data-action="rateCard" data-param="4">Good</button>
           <button class="btn accent" data-action="rateCard" data-param="5">Easy</button>
         </div>
         <button class="btn accent large" id="show-answer-btn" data-action="showFlashAnswer">Show Answer</button>
@@ -164,7 +164,7 @@ export const practiceMixin = {
 
   /**
    * SM-2 Spaced Repetition Algorithm
-   * Quality scale: 0=Again, 2=Hard, 3=Good, 5=Easy
+   * Quality scale: 0=Again, 3=Hard, 4=Good, 5=Easy
    */
   async rateCard(quality) {
     quality = parseInt(quality);
@@ -256,9 +256,10 @@ export const practiceMixin = {
   },
 
   // --- PDF Export ---
-  exportSessionPDF() {
+  async exportSessionPDF() {
     const s = this.state.session;
     if (!s || !s.data) return;
+    const { jsPDF } = await import('jspdf'); // ~350 KB; only needed on export
     const doc = new jsPDF();
     doc.setFontSize(20); doc.text(`Woni ${s.title} Results`, 20, 20);
     doc.setFontSize(12); doc.text(`Date: ${new Date().toLocaleString()}`, 20, 30);

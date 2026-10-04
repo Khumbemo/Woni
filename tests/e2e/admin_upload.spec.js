@@ -24,13 +24,21 @@ test('Admin Upload Panel and Cloud Library Sync', async ({ page }) => {
   await page.locator('.nav-item[data-view="settings"]').click();
   await expect(page.locator('#view-settings')).toHaveClass(/active/);
 
-  // Inject a fake user to reveal the Admin Upload Panel
+  // A signed-in user without the admin claim must not see the panel.
+  const adminPanel = page.locator('#admin-upload-panel');
   await page.evaluate(() => {
-    window.app.state.user = { uid: 'test_admin_123', email: 'admin@test.com' };
+    window.app.state.user = { uid: 'test_user_123', email: 'user@test.com' };
+    window.app.state.isAdmin = false;
     window.app.updateAuthUI();
   });
+  await expect(adminPanel).toHaveClass(/hidden/);
 
-  const adminPanel = page.locator('#admin-upload-panel');
+  // Inject a fake admin to reveal the Admin Upload Panel
+  await page.evaluate(() => {
+    window.app.state.user = { uid: 'test_admin_123', email: 'admin@test.com' };
+    window.app.state.isAdmin = true;
+    window.app.updateAuthUI();
+  });
   await expect(adminPanel).not.toHaveClass(/hidden/);
 
   // Fill out the Admin Book Upload Form

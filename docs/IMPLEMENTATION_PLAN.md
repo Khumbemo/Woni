@@ -48,25 +48,32 @@ The fixes were also checked by driving the app in Chromium: a new guest now sees
 
 ---
 
-## Phase 2: Recommended next (needs your decision or Firebase console access)
+## Phase 2: Done (security, reliability, polish)
 
-These are real issues I did **not** change, because they alter behaviour or need credentials or console settings.
+| # | Issue | Fix |
+|---|---|---|
+| 1 | Any signed-in user could upload books to the shared library | Uploads now require an `admin: true` custom claim, enforced by `firestore.rules` and `storage.rules`; the panel only shows for admins. `scripts/set-admin.mjs` grants or revokes the claim. |
+| 2 | The AI proxy forwarded any request with the master Groq key | The Worker fixes the model, caps tokens (2,048), prompt size (60k chars) and messages (20), allows only the app's origins, and rate-limits per IP: 10/min burst and an optional 30/day KV quota. 7 unit tests; `wrangler deploy --dry-run` validates the config. |
+| 3 | Cloud sync used one Firestore document (1 MiB cap) and asked "overwrite?" on every sync | One document per record under `users/{uid}/{store}/{syncId}`. Two-way merge where the newest `updatedAt` wins, an incremental pull, and a one-time import of the old format. Covered by a two-device test against a fake Firestore. |
+| 4 | Guests couldn't see shared cloud books | The shelf renders local and built-in books immediately, then fetches public cloud books in the background for everyone. |
+| 5 | The web build used the Android `appId` | The Firebase config can now be overridden with `VITE_FIREBASE_*` variables (`.env.example`). |
+| 6 | Settings: the API key row broke at phone width | Stacked layout, styled input/select, no horizontal overflow at 390 px. |
+| 7 | Two conflicting manifests with placeholder icons | A single manifest from `vite.config.js` with 192/512 PNG, maskable and SVG icons plus an Apple touch icon; removed `public/manifest.json`, `sw.js` and `vite.svg`. |
+| 8 | Main bundle was 1,676 kB | pdf.js, Tesseract, jsPDF, Chart.js, Firestore and Storage load on first use. Main bundle is now 255 kB (79 kB gzip). |
+| 9 | Flashcard "Hard" reset the card | Buttons now use SM-2's own scale (Again 0, Hard 3, Good 4, Easy 5): Hard advances the card and lowers its ease by 0.14. |
+| 10 | Smaller items | Only completed analyses use a free analysis. The proxy's own error is shown to the user. The syllabus-relevance check flags off-syllabus items for review. Fallback topics are derived when the AI returns none. Removed the unused `secondPassVerify`/`getImportantTopics`. Particles follow the theme. Local books open with pop-up blockers on. |
 
-1. **Security: every signed-in user is effectively an admin.** The admin upload panel is shown to any logged-in user, and `firestore.rules`/`storage.rules` let any authenticated user create `library_books`, which every user then sees.
-   *Plan:* set a custom claim (`admin: true`) with the Admin SDK on your account. Change the rules to `allow create: if request.auth.token.admin == true`, and show the panel only when `getIdTokenResult()` has `claims.admin`. Deploy with `firebase deploy --only firestore:rules,storage`.
-2. **Security/cost: the AI proxy is open.** `worker/index.js` forwards any body to Groq with your key, and the 5-use freemium limit exists only in `localStorage`, which anyone can clear.
-   *Plan:* in the Worker, allow only the `llama-3.3-70b-versatile` model, cap `max_tokens`, and add per-IP rate limiting (Cloudflare Rate Limiting binding or KV counter). Optionally require a Firebase ID token.
-3. **Cloud sync will hit Firestore's 1 MiB document limit.** All papers (up to 10 KB of text each), questions and tests go into a single `users/{uid}` doc. Every sync after the first also asks "overwrite local?".
-   *Plan:* move to per-record subcollections (`users/{uid}/questions/{id}` …) with `updatedAt`-based merge, and drop paper text from sync.
-4. **Cloud books are hidden from guests**, even though the rules allow public read and the panel says "for all users". *Plan:* drop the `this.state.user` check in `renderLibraryContent` (the timeout from fix 16 makes this safe offline).
-5. **Firebase web config uses the Android `appId`** (`1:…:android:…`). *Plan:* register a Web app in the Firebase console and use its config. The current config works for Auth and Firestore but not for Analytics or App Check.
-6. **PWA manifest conflict.** `index.html` links `/manifest.json` (Vite logo icons), and the plugin injects `/manifest.webmanifest` (data-URI icon). The browser uses the first one. *Plan:* keep a single manifest (in `vite.config.js`) with real 192/512 PNG icons, and delete `public/manifest.json` and the unused `public/sw.js`.
+## Steps only you can do
 
-## Phase 3: Quality and performance (lower priority)
+These need your Firebase or Cloudflare accounts:
 
-- Main bundle is 1.68 MB (Firebase compat, pdf.js, tesseract, jsPDF, Chart.js). Lazy-load pdf.js/tesseract in Upload, jsPDF on export, and Chart.js in Stats. Migrate Firebase compat to the modular SDK.
-- The "Hard" flashcard button sends quality 2, which SM-2 treats as a lapse (a reset to day 1). Consider relabelling it or mapping Hard to 3, as Anki does.
-- Every AI call (including chat) uses up a "freemium analysis". Decide whether chat should count.
-- `secondPassVerify`, `isRelevantToExam`, `makeFallbackTopics` and `runBenchmarkSuite` are defined but never called. Wire them in or remove them.
-- Particle colour is fixed at start-up, so it doesn't follow a theme change.
-- `openLocalBook` calls `window.open` after an `await`, which Safari's pop-up blocker may block.
+1. **Make yourself admin:** `node scripts/set-admin.mjs you@example.com` with a service-account key (see README).
+2. **Deploy the new rules:** `firebase deploy --only firestore:rules,storage`. Until you do, the old rules (any signed-in user can upload) stay live, and per-record sync is refused by the old Firestore rules.
+3. **Register a Web app** in the Firebase console and put its `appId` in `.env` as `VITE_FIREBASE_APP_ID`.
+4. **Redeploy the Worker** (`cd worker && wrangler deploy`). Optionally create the `USAGE` KV namespace for the daily quota (see `worker/README.md`).
+
+## Known limits
+
+- Sync does not propagate deletions. The app only deletes through Reset and Import, and a reset device re-downloads its data on the next sync.
+- Sync compares device clocks. A device whose clock is badly wrong can win or lose conflicts it shouldn't. The incremental pull re-checks a 5-minute overlap.
+- Firebase still uses the compat SDK. Moving to the modular SDK would shrink the bundle further.

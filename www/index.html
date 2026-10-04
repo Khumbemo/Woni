@@ -19,13 +19,15 @@
   <meta name="twitter:title" content="Woni — AI Exam Intelligence" />
   <meta name="twitter:description" content="AI-powered exam prep for CSIR NET, GATE LS, UGC NET, SLET & NPSC. Upload papers → extract questions → practice smarter." />
 
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>"/>
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="manifest" href="/manifest.json" />
   <!-- Critical CSS: the main stylesheet is loaded by JS, so keep hidden UI hidden until then -->
   <style>.hidden { display: none !important; }</style>
-  <script type="module" crossorigin src="/assets/index-RJkyC8VZ.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-CQdhiYdz.css">
+  <script type="module" crossorigin src="/assets/index-o_M69A7J.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/chunk-jRWAZmH_.js">
+  <link rel="stylesheet" crossorigin href="/assets/index-OVvMpWRV.css">
 <link rel="manifest" href="/manifest.webmanifest"></head>
 <body class="dark-theme">
   <!-- Science Background -->
@@ -417,14 +419,16 @@
                </div>
                <button class="btn small accent" data-action="syncWithCloud">Sync</button>
             </div>
-            <div class="setting-item">
+            <div class="setting-item setting-item--stack">
                <div class="setting-info">
                  <span>API Key</span>
                  <p class="muted">Groq API Key for analysis</p>
                </div>
-               <input type="password" id="api-key-input" placeholder="Optional for first 5 uses">
-               <button class="btn small" data-action="saveApiKey">Save</button>
-               <p id="api-key-info" class="muted-mini" style="width: 100%; margin-top: 5px;">You have free AI uses remaining.</p>
+               <div class="setting-field">
+                 <input type="password" id="api-key-input" placeholder="Optional for first 5 uses" autocomplete="off" aria-label="Groq API key">
+                 <button class="btn small" data-action="saveApiKey">Save</button>
+               </div>
+               <p id="api-key-info" class="muted-mini">You have free AI uses remaining.</p>
             </div>
 
             <div class="guide-container">
