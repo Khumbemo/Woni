@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "npx playwright test",
     "test:unit": "vitest run",
-    "test:report": "npx playwright show-report"
+    "test:report": "npx playwright show-report",
+    "build:artifact": "node artifact/build.mjs"
   },
   "repository": {
     "type": "git",
@@ -38,8 +39,9 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
+    "firebase-admin": "^13.10.0",
     "vite": "^8.0.10",
-    "vite-plugin-pwa": "^1.2.0",
+    "vite-plugin-pwa": "^1.3.0",
     "vitest": "^4.1.5"
   }
 }

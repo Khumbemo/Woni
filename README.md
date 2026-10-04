@@ -49,9 +49,31 @@ To enable Cloud Sync, you'll need a Firebase project:
 
 1. Create a project in the [Firebase Console](https://console.firebase.google.com/).
 2. Enable **Authentication** (Email/Password provider).
-3. Create a **Firestore Database** in test mode or with appropriate security rules.
-4. Add a Web App to your project and copy the `firebaseConfig` object.
-5. Paste your configuration into the `initFirebase()` function in `app.js`.
+3. Create a **Firestore Database** and a **Storage** bucket.
+4. Add a **Web app** to your project. Copy `.env.example` to `.env` and fill in its config values (defaults live in `src/auth.js`).
+5. Deploy the security rules:
+   ```bash
+   firebase deploy --only firestore:rules,storage
+   ```
+
+Cloud Sync stores one Firestore document per record (`users/{uid}/{store}/{id}`) and merges changes from several devices; the most recent edit wins.
+
+### 👑 Admin accounts (shared library uploads)
+
+Only accounts with the `admin` custom claim can upload books to the shared cloud library, and the Firestore and Storage rules enforce this. To make an account an admin:
+
+1. Firebase console → Project settings → Service accounts → **Generate new private key**. Save it as `service-account.json` (it is git-ignored; never commit it).
+2. Run:
+   ```bash
+   GOOGLE_APPLICATION_CREDENTIALS=service-account.json node scripts/set-admin.mjs you@example.com
+   ```
+3. Sign out and back in. The **Admin Cloud Upload** panel appears in Settings.
+
+Revoke with `--revoke`.
+
+### 🤖 AI proxy
+
+New users without a Groq key use the proxy in `worker/`. See [`worker/README.md`](worker/README.md) for deployment and its rate limits.
 
 ## 📱 Mobile Deployment (Capacitor)
 

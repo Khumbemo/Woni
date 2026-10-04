@@ -1,12 +1,22 @@
-import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.js?url';
-import { createWorker } from 'tesseract.js';
+import { parseJSON } from './utils.js';
 
-// Configure PDF.js Worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+// pdf.js and Tesseract are large; load them only when a file is analyzed.
+let pdfjsPromise;
+function loadPdfjs() {
+  pdfjsPromise ??= import('pdfjs-dist').then(lib => {
+    lib.GlobalWorkerOptions.workerSrc = pdfWorker;
+    return lib;
+  });
+  return pdfjsPromise;
+}
+
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 export const aiMixin = {
   async extractPDFText(file) {
+    const pdfjsLib = await loadPdfjs();
     const ab = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
     let text = '';
@@ -20,6 +30,7 @@ export const aiMixin = {
   },
 
   async extractImageText(file) {
+    const { createWorker } = await import('tesseract.js');
     const worker = await createWorker('eng');
     const result = await worker.recognize(file);
     await worker.terminate();
@@ -126,105 +137,62 @@ export const aiMixin = {
 
   updateSettingsUI() {
     const info = document.getElementById('api-key-info');
-    if (info && !this.state.apiKey) {
-       const count = this.getFreemiumCount();
-       info.textContent = `Freemium Analyses Used: ${count}/5`;
-    }
+    if (!info) return;
+    info.textContent = this.state.apiKey
+      ? 'Using your own Groq API key. No limit from Woni.'
+      : `Free analyses used: ${this.getFreemiumCount()} of 5.`;
   },
 
-  async groqCall(prompt) {
+  /**
+   * One chat completion via the user's Groq key, or the Woni proxy when no
+   * key is saved. Returns the reply text.
+   */
+  async _chatCompletion({ messages, json = false, temperature, maxTokens }) {
     const useProxy = !this.state.apiKey;
-    const url = useProxy ? this.getProxyUrl() : 'https://api.groq.com/openai/v1/chat/completions';
+    const url = useProxy ? this.getProxyUrl() : GROQ_URL;
     const headers = { 'Content-Type': 'application/json' };
     if (!useProxy) headers['Authorization'] = `Bearer ${this.state.apiKey}`;
 
+    const body = { model: GROQ_MODEL, messages };
+    if (json) body.response_format = { type: 'json_object' };
+    if (temperature !== undefined) body.temperature = temperature;
+    if (maxTokens !== undefined) body.max_tokens = maxTokens;
+
     let resp;
     try {
-      resp = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: prompt }], response_format: { type: "json_object" } }),
-      });
+      resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
     } catch (networkErr) {
       if (useProxy) {
         throw new Error('AI Proxy is currently unavailable. Please add your own free Groq API Key in Settings → API Key.');
       }
       throw new Error('Network error: Could not reach Groq API. Check your internet connection.');
     }
-    
+
     if (!resp.ok) {
-      if (useProxy) throw new Error('AI Proxy returned an error. Please add your own free Groq API Key in Settings → API Key.');
       const errBody = await resp.text().catch(() => '');
-      throw new Error(`Groq API Error (${resp.status}): ${errBody.slice(0, 120)}`);
-    }
-    const data = await resp.json();
-    this.incrementFreemium();
-    return data.choices[0].message.content;
-  },
-
-  async groqTextCall(prompt) {
-    const useProxy = !this.state.apiKey;
-    const url = useProxy ? this.getProxyUrl() : 'https://api.groq.com/openai/v1/chat/completions';
-    const headers = { 'Content-Type': 'application/json' };
-    if (!useProxy) headers['Authorization'] = `Bearer ${this.state.apiKey}`;
-
-    let resp;
-    try {
-      resp = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: prompt }] }),
-      });
-    } catch (networkErr) {
       if (useProxy) {
-        throw new Error('AI Proxy is currently unavailable. Please add your own free Groq API Key in Settings → API Key.');
+        let reason = '';
+        try { reason = JSON.parse(errBody).error || ''; } catch {}
+        throw new Error(`${reason || 'AI Proxy returned an error.'} You can add your own free Groq API Key in Settings → API Key.`);
       }
-      throw new Error('Network error: Could not reach Groq API. Check your internet connection.');
-    }
-    
-    if (!resp.ok) {
-      if (useProxy) throw new Error('AI Proxy returned an error. Please add your own free Groq API Key in Settings → API Key.');
-      const errBody = await resp.text().catch(() => '');
       throw new Error(`Groq API Error (${resp.status}): ${errBody.slice(0, 120)}`);
     }
     const data = await resp.json();
-    this.incrementFreemium();
     return (data.choices?.[0]?.message?.content || '').trim();
   },
 
+  /** JSON-mode call used by paper analysis. */
+  groqCall(prompt) {
+    return this._chatCompletion({ messages: [{ role: 'user', content: prompt }], json: true });
+  },
+
+  /** Plain-text call used by the analysis chat. */
+  groqTextCall(prompt) {
+    return this._chatCompletion({ messages: [{ role: 'user', content: prompt }] });
+  },
+
   parseJSON(raw) {
-    try {
-      let text = raw.trim();
-      // Remove markdown code blocks if present
-      if (text.includes('\`\`\`')) {
-        const matches = text.match(/\`\`\`(?:json)?\s*([\s\S]*?)\s*\`\`\`/i);
-        if (matches && matches[1]) {
-          text = matches[1];
-        } else {
-          text = text.replace(/\`\`\`[a-z]*\n/gi, '').replace(/\n\`\`\`/g, '');
-        }
-      }
-
-      // Attempt to find the first '{' and last '}' to strip any leading/trailing text
-      const start = text.indexOf('{');
-      const end = text.lastIndexOf('}');
-      if (start !== -1 && end !== -1) {
-        text = text.slice(start, end + 1);
-      }
-
-      return JSON.parse(text);
-    } catch (e) {
-      console.error('Failed to parse JSON', e, raw);
-      // Fallback: try to find an array if the object parse failed
-      try {
-        const startArr = raw.indexOf('[');
-        const endArr = raw.lastIndexOf(']');
-        if (startArr !== -1 && endArr !== -1) {
-          return { questions: JSON.parse(raw.slice(startArr, endArr + 1)) };
-        }
-      } catch (e2) { }
-      return {};
-    }
+    return parseJSON(raw);
   },
 
   /**
@@ -235,42 +203,13 @@ export const aiMixin = {
    * @returns {string} The AI response text
    */
   async groqTutorCall(systemPrompt, messages) {
-    const useProxy = !this.state.apiKey;
-    const url = useProxy ? this.getProxyUrl() : 'https://api.groq.com/openai/v1/chat/completions';
-    const headers = { 'Content-Type': 'application/json' };
-    if (!useProxy) headers['Authorization'] = `Bearer ${this.state.apiKey}`;
-
-    const apiMessages = [
-      { role: 'system', content: systemPrompt },
-      ...messages.slice(-10) // Keep last 10 messages for context window efficiency
-    ];
-
-    let resp;
-    try {
-      resp = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: apiMessages,
-          temperature: 0.7,
-          max_tokens: 1024,
-        }),
-      });
-    } catch (networkErr) {
-      if (useProxy) {
-        throw new Error('AI Proxy is currently unavailable. Please add your own free Groq API Key in Settings → API Key.');
-      }
-      throw new Error('Network error: Could not reach Groq API. Check your internet connection.');
-    }
-
-    if (!resp.ok) {
-      if (useProxy) throw new Error('AI Proxy returned an error. Please add your own free Groq API Key in Settings → API Key.');
-      const errBody = await resp.text().catch(() => '');
-      throw new Error(`Groq API Error (${resp.status}): ${errBody.slice(0, 120)}`);
-    }
-    const data = await resp.json();
-    this.incrementFreemium();
-    return (data.choices?.[0]?.message?.content || '').trim();
+    return this._chatCompletion({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages.slice(-10), // Keep last 10 messages for context window efficiency
+      ],
+      temperature: 0.7,
+      maxTokens: 1024,
+    });
   }
 };

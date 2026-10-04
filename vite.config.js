@@ -11,17 +11,20 @@ export default defineConfig({
       devOptions: {
         enabled: true
       },
+      // The only web app manifest (the plugin injects the <link> into index.html).
       manifest: {
-        name: 'Woni',
+        name: 'Woni — AI Exam Intelligence',
         short_name: 'Woni',
-        description: 'AI Exam Intelligence App',
-        theme_color: '#0d1117',
+        description: 'Exam prep for CSIR NET, GATE Life Science, UGC NET, SLET and NPSC.',
+        theme_color: '#0c0c0f',
+        background_color: '#0c0c0f',
+        display: 'standalone',
+        start_url: '.',
         icons: [
-          {
-            src: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>',
-            sizes: '192x192',
-            type: 'image/svg+xml'
-          }
+          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'icons/icon.svg', sizes: 'any', type: 'image/svg+xml' }
         ]
       },
       workbox: {
@@ -30,6 +33,10 @@ export default defineConfig({
       }
     })
   ],
+  optimizeDeps: {
+    // Pre-bundle so the dev server doesn't discover it late and force a reload.
+    include: ['workbox-window']
+  },
   build: {
     outDir: 'www',
     emptyOutDir: true

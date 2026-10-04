@@ -1,4 +1,5 @@
 import * as idb from 'idb';
+import { SYNC_STORES, makeSyncId } from './utils.js';
 
 export const dbMixin = {
   async initDB() {
@@ -62,11 +63,19 @@ export const dbMixin = {
     });
   },
 
+  /** Mark a record as changed for cloud sync (mutates, so callers' objects stay in step). */
+  _stampForSync(storeName, data) {
+    if (!SYNC_STORES[storeName] || !data || typeof data !== 'object') return data;
+    if (!data.syncId) data.syncId = makeSyncId(storeName, data);
+    data.updatedAt = Date.now();
+    return data;
+  },
+
   async dbAdd(storeName, data) {
-    return this.state.db.add(storeName, data);
+    return this.state.db.add(storeName, this._stampForSync(storeName, data));
   },
   async dbPut(storeName, data) {
-    return this.state.db.put(storeName, data);
+    return this.state.db.put(storeName, this._stampForSync(storeName, data));
   },
   async dbGet(storeName, key) {
     return this.state.db.get(storeName, key);

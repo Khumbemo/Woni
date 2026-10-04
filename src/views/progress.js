@@ -2,9 +2,15 @@
  * Woni — Progress View Module
  * Performance chart and topic mastery heatmap.
  */
-import { Chart, LineController, LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip } from 'chart.js';
-
-Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip);
+// Chart.js is only needed on the Stats tab; load it on first visit.
+let chartPromise;
+function loadChart() {
+  chartPromise ??= import('chart.js').then(({ Chart, LineController, LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip }) => {
+    Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip);
+    return Chart;
+  });
+  return chartPromise;
+}
 
 export const progressMixin = {
   async updateProgressView() {
@@ -19,6 +25,7 @@ export const progressMixin = {
 
     const ctxEl = document.getElementById('performance-chart');
     if (ctxEl) {
+      const Chart = await loadChart();
       const ctx = ctxEl.getContext('2d');
       if (this.chart) this.chart.destroy();
       this.chart = new Chart(ctx, {

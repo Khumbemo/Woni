@@ -29,26 +29,13 @@ export const libraryMixin = {
     const examId = this.state.activeLibExam;
     const curated = JSON.parse(JSON.stringify(this.CURATED_RESOURCES[examId] || {}));
 
-    container.innerHTML = '<div class="skeleton-card" style="height:120px"></div><div class="skeleton-card" style="height:120px"></div>';
-
     const userBooks = await this.dbGetFromIndex('library', 'exam', examId);
-    let cloudBooks = [];
+    // A newer render (tab switch / search) started while we were waiting.
+    if (examId !== this.state.activeLibExam) return;
 
-    // Fetch from Firestore (graceful degradation)
-    try {
-      if (this.db && this.state.user) {
-        const snapshot = await this.db.collection('library_books')
-          .where('exam', '==', examId)
-          .get();
-        snapshot.forEach(doc => { cloudBooks.push(doc.data()); });
-      }
-    } catch (e) {
-      if (e.code === 'permission-denied') {
-        console.warn('Cloud Library: Firestore access denied. Using local + curated resources only.');
-      } else {
-        console.error('Failed to fetch cloud books', e);
-      }
-    }
+    // Shared cloud books are public: show what's cached now, refresh in the background.
+    const cloudBooks = this.state.cloudBooks?.[examId] || [];
+    this.fetchCloudBooks(examId);
 
     // Group user books by subject
     const groupedUser = {};
@@ -105,6 +92,38 @@ export const libraryMixin = {
     this.updateLucide();
   },
 
+  /**
+   * Load shared books for an exam from Firestore at most once a minute, then
+   * re-render if the user is still looking at that exam.
+   */
+  async fetchCloudBooks(examId) {
+    this.state.cloudBooks ??= {};
+    this._cloudFetchedAt ??= {};
+    if (Date.now() - (this._cloudFetchedAt[examId] || 0) < 60000) return;
+    this._cloudFetchedAt[examId] = Date.now();
+    try {
+      const db = await this.getDb();
+      const snapshot = await Promise.race([
+        db.collection('library_books').where('exam', '==', examId).get(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Cloud library timed out')), 8000)),
+      ]);
+      const books = snapshot.docs.map(doc => doc.data());
+      const before = JSON.stringify(this.state.cloudBooks[examId] || []);
+      this.state.cloudBooks[examId] = books;
+      if (JSON.stringify(books) !== before && this.state.activeLibExam === examId
+          && this.state.currentView === 'library') {
+        this.renderLibraryContent();
+      }
+    } catch (e) {
+      this._cloudFetchedAt[examId] = 0; // try again next time the shelf opens
+      if (e.code === 'permission-denied') {
+        console.warn('Cloud Library: Firestore access denied. Using local + curated resources only.');
+      } else {
+        console.warn('Cloud Library unavailable:', e.message);
+      }
+    }
+  },
+
   openExternal(url) {
     if (url) window.open(url, '_blank');
   },
@@ -149,8 +168,11 @@ export const libraryMixin = {
   },
 
   async openLocalBook(id) {
+    // Open the tab while still inside the click: pop-up blockers (Safari in
+    // particular) refuse window.open after an await.
+    const win = window.open('', '_blank');
     const book = await this.dbGet('library', parseInt(id));
-    if (!book) return;
+    if (!book) { win?.close(); return; }
 
     try {
       let blob;
@@ -162,8 +184,12 @@ export const libraryMixin = {
         blob = await fetchRes.blob();
       }
       const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      if (win) win.location.href = url;
+      else window.open(url, '_blank');
+      // Keep the blob alive long enough for the new tab to load it.
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (e) {
+      win?.close();
       console.error('Failed to open book', e);
       this.showToast('Could not open this book.', 'error');
     }
@@ -181,8 +207,8 @@ export const libraryMixin = {
       this.showToast('Please fill all fields and select a PDF.', 'error');
       return;
     }
-    if (!this.state.user) {
-      this.showToast('You must be signed in to upload cloud books.', 'error');
+    if (!this.state.user || !this.state.isAdmin) {
+      this.showToast('Only admin accounts can upload books to the shared library.', 'error');
       return;
     }
 
@@ -191,11 +217,12 @@ export const libraryMixin = {
     if (btn) { btn.textContent = 'Uploading...'; btn.disabled = true; }
 
     try {
-      const storageRef = this.storage.ref(`library_books/${exam}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`);
+      const [db, storage] = await Promise.all([this.getDb(), this.getStorage()]);
+      const storageRef = storage.ref(`library_books/${exam}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`);
       const snapshot = await storageRef.put(file);
       const downloadURL = await snapshot.ref.getDownloadURL();
 
-      await this.db.collection('library_books').add({
+      await db.collection('library_books').add({
         title, subject, exam, url: downloadURL,
         addedBy: this.state.user.uid,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -205,6 +232,7 @@ export const libraryMixin = {
       if (document.getElementById('admin-book-title')) document.getElementById('admin-book-title').value = '';
       if (document.getElementById('admin-book-subject')) document.getElementById('admin-book-subject').value = '';
       if (fileInput) fileInput.value = '';
+      if (this._cloudFetchedAt) this._cloudFetchedAt[exam] = 0;
       if (this.state.currentView === 'library') this.renderLibraryContent();
     } catch (e) {
       console.error(e);

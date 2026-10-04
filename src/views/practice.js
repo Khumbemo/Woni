@@ -4,7 +4,7 @@
  */
 import { h, render } from 'preact';
 import FocusTimer from '../components/FocusTimer.jsx';
-import { jsPDF } from 'jspdf';
+import { shuffle, answerToLetter, sm2 } from '../utils.js';
 
 export const practiceMixin = {
   async updatePracticeView() {
@@ -53,7 +53,7 @@ export const practiceMixin = {
       return;
     }
 
-    const selected = allQuestions.sort(() => 0.5 - Math.random()).slice(0, qCount);
+    const selected = shuffle(allQuestions).slice(0, qCount);
     this.hideSubView('mock-test-setup');
     this.openSession('Mock Test', 'test', selected);
   },
@@ -115,15 +115,16 @@ export const practiceMixin = {
         <div class="card-count">Card ${s.index + 1} of ${s.data.length}</div>
         <div class="flashcard-box" id="flashcard-box" data-action="flipCard">
           <div class="card-front">${this.escapeHtml(item.front)}</div>
-          <div class="card-back">${this.escapeHtml(item.back).replace(/\\n/g, '<br>')}</div>
+          <div class="card-back">${this.escapeHtml(item.back)}</div>
         </div>
         <p class="muted" style="text-align:center;margin-top:16px">Tap card to flip</p>
       `;
       footer.innerHTML = `
         <div class="sm2-btns hidden" id="sm2-btns">
+          <!-- SM-2 quality: 0 = forgot (reset), 3 = recalled with difficulty, 4 = after hesitation, 5 = perfect -->
           <button class="btn danger" data-action="rateCard" data-param="0">Again</button>
-          <button class="btn" style="color:var(--gold)" data-action="rateCard" data-param="2">Hard</button>
-          <button class="btn" style="color:var(--green)" data-action="rateCard" data-param="3">Good</button>
+          <button class="btn" style="color:var(--gold)" data-action="rateCard" data-param="3">Hard</button>
+          <button class="btn" style="color:var(--green)" data-action="rateCard" data-param="4">Good</button>
           <button class="btn accent" data-action="rateCard" data-param="5">Easy</button>
         </div>
         <button class="btn accent large" id="show-answer-btn" data-action="showFlashAnswer">Show Answer</button>
@@ -163,29 +164,13 @@ export const practiceMixin = {
 
   /**
    * SM-2 Spaced Repetition Algorithm
-   * Quality scale: 0=Again, 2=Hard, 3=Good, 5=Easy
+   * Quality scale: 0=Again, 3=Hard, 4=Good, 5=Easy
    */
   async rateCard(quality) {
     quality = parseInt(quality);
     const s = this.state.session;
     const card = s.data[s.index];
-    let { interval, repetition, ease } = card;
-
-    ease = ease || 2.5;
-
-    if (quality >= 3) {
-      if (repetition === 0) interval = 1;
-      else if (repetition === 1) interval = 6;
-      else interval = Math.round(interval * ease);
-      repetition++;
-    } else {
-      repetition = 0;
-      interval = 1;
-    }
-
-    // SM-2 ease factor formula
-    ease = ease + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
-    ease = Math.max(1.3, ease); // Floor at 1.3
+    const { interval, repetition, ease } = sm2(quality, card);
 
     card.interval = interval;
     card.repetition = repetition;
@@ -211,7 +196,7 @@ export const practiceMixin = {
         const topicName = q.topic || "General";
         if (!topicStats[topicName]) topicStats[topicName] = { correct: 0, total: 0 };
         topicStats[topicName].total++;
-        if (s.answers[i] === q.answer) { correctCount++; topicStats[topicName].correct++; }
+        if (s.answers[i] && s.answers[i] === answerToLetter(q)) { correctCount++; topicStats[topicName].correct++; }
       });
       const score = Math.round((correctCount / s.data.length) * 100);
       content.innerHTML = `<div class="results-box"><div class="res-score">${score}%</div><p>${correctCount} correct out of ${s.data.length}</p><p class="muted">Time: ${timerEl ? timerEl.textContent : ''}</p><button class="btn small accent" data-action="exportSessionPDF" style="margin-top:20px">Export Results PDF</button></div>`;
@@ -246,8 +231,8 @@ export const practiceMixin = {
     }, 1000);
   },
 
-  exitSession(force) {
-    if (force === 'force' || confirm('Are you sure you want to exit?')) {
+  async exitSession(force) {
+    if (force === 'force' || await this.confirmAction('Are you sure you want to exit?')) {
       if (this.state.sessionTimer) clearInterval(this.state.sessionTimer);
       this.hideSubView('active-session-overlay');
       if (this.resumeParticles) this.resumeParticles();
@@ -271,15 +256,16 @@ export const practiceMixin = {
   },
 
   // --- PDF Export ---
-  exportSessionPDF() {
+  async exportSessionPDF() {
     const s = this.state.session;
     if (!s || !s.data) return;
+    const { jsPDF } = await import('jspdf'); // ~350 KB; only needed on export
     const doc = new jsPDF();
     doc.setFontSize(20); doc.text(`Woni ${s.title} Results`, 20, 20);
     doc.setFontSize(12); doc.text(`Date: ${new Date().toLocaleString()}`, 20, 30);
     doc.text(`Exam: ${this.state.activeExam?.name || 'N/A'}`, 20, 40);
     let correctCount = 0;
-    s.data.forEach((q, i) => { if (s.answers[i] === q.answer) correctCount++; });
+    s.data.forEach((q, i) => { if (s.answers[i] && s.answers[i] === answerToLetter(q)) correctCount++; });
     const score = Math.round((correctCount / s.data.length) * 100);
     doc.setFontSize(16); doc.text(`Score: ${score}% (${correctCount}/${s.data.length})`, 20, 55);
     doc.setFontSize(12); let y = 70;
@@ -291,9 +277,9 @@ export const practiceMixin = {
       doc.text(lines, 20, y);
       y += (lines.length * 6);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Your Answer: ${s.answers[i] || 'None'} | Correct: ${q.answer}`, 25, y);
+      doc.text(`Your Answer: ${s.answers[i] || 'None'} | Correct: ${answerToLetter(q) || q.answer}`, 25, y);
       y += 10;
     });
-    doc.save(`Woni_Result_${Date.now()}.pdf`);
+    this.saveFile(`Woni_Result_${Date.now()}.pdf`, doc.output('blob'));
   },
 };
