@@ -8,3 +8,7 @@ screenshots/
 dist-artifact/
 service-account*.json
 .env
+firestore-debug.log
+firebase-debug.log
+storage-debug.log
+ui-debug.log
