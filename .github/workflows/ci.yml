@@ -28,6 +28,15 @@ jobs:
       - name: Build production
         run: npm run build
 
+      - name: Setup Java (Firebase emulators)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Run security rules tests
+        run: npm run test:rules
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 

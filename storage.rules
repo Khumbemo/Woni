@@ -5,7 +5,7 @@ service firebase.storage {
     match /library_books/{allPaths=**} {
       allow read: if true;
       allow write: if request.auth != null
-        && request.auth.token.admin == true
+        && request.auth.token.get('admin', false) == true
         && request.resource.size < 50 * 1024 * 1024  // 50 MB max
         && request.resource.contentType.matches('application/pdf');
     }

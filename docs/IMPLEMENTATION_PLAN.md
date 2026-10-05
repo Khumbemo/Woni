@@ -68,7 +68,7 @@ The fixes were also checked by driving the app in Chromium: a new guest now sees
 These need your Firebase or Cloudflare accounts:
 
 1. **Make yourself admin:** `node scripts/set-admin.mjs you@example.com` with a service-account key (see README).
-2. **Deploy the new rules:** `firebase deploy --only firestore:rules,storage`. Until you do, the old rules (any signed-in user can upload) stay live, and per-record sync is refused by the old Firestore rules.
+2. **Deploy the new rules:** `npm run deploy:rules` (tested by `npm run test:rules` in the emulators). Until you do, the old rules (any signed-in user can upload) stay live, and per-record sync is refused by the old Firestore rules.
 3. **Register a Web app** in the Firebase console and put its `appId` in `.env` as `VITE_FIREBASE_APP_ID`.
 4. **Redeploy the Worker** (`cd worker && wrangler deploy`). Optionally create the `USAGE` KV namespace for the daily quota (see `worker/README.md`).
 

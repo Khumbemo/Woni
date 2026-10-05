@@ -51,9 +51,11 @@ To enable Cloud Sync, you'll need a Firebase project:
 2. Enable **Authentication** (Email/Password provider).
 3. Create a **Firestore Database** and a **Storage** bucket.
 4. Add a **Web app** to your project. Copy `.env.example` to `.env` and fill in its config values (defaults live in `src/auth.js`).
-5. Deploy the security rules:
+5. Test and deploy the security rules (the project id is in `.firebaserc`):
    ```bash
-   firebase deploy --only firestore:rules,storage
+   npm run test:rules      # runs tests/rules against the Firestore + Storage emulators (needs Java 21)
+   npx firebase login      # or set GOOGLE_APPLICATION_CREDENTIALS to a service-account key
+   npm run deploy:rules
    ```
 
 Cloud Sync stores one Firestore document per record (`users/{uid}/{store}/{id}`) and merges changes from several devices; the most recent edit wins.
