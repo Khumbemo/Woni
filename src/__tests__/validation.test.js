@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { uploadMixin } from '../views/upload.js';
-import { shuffle, answerToLetter, computeStreak, parseDuration, formatStudyTime, sm2, parseJSON, planSync, makeSyncId } from '../utils.js';
+import { shuffle, answerToLetter, computeStreak, parseDuration, formatStudyTime, sm2, parseJSON, planSync, makeSyncId, toPdfText, updateMastery } from '../utils.js';
 
 // app.js / ai.js pull in DOM, Firebase and pdf.js, so test the pure pieces directly.
 const validateQuestion = (...a) => uploadMixin.validateQuestion.apply(uploadMixin, a);
@@ -313,5 +313,23 @@ describe('makeSyncId', () => {
   });
   it('uses a random id for auto-incremented stores', () => {
     expect(makeSyncId('questions', { id: 5 }, () => 'uuid-1')).toBe('uuid-1');
+  });
+});
+
+describe('toPdfText', () => {
+  it('spells out Greek letters and symbols, keeps Latin-1', () => {
+    expect(toPdfText('α-helix → β-sheet, ΔG ≤ 0, 37°C, H₂O, µm')).toBe('alpha-helix -> beta-sheet, DeltaG <= 0, 37°C, H2O, µm');
+  });
+  it('replaces other non-Latin-1 characters with ?', () => {
+    expect(toPdfText('नमस्ते ok')).toBe('?????? ok');
+  });
+});
+
+describe('updateMastery', () => {
+  it('first session sets mastery directly (no bias toward 0)', () => {
+    expect(updateMastery(0, 0, 100)).toBe(100);
+  });
+  it('later sessions blend 60% history with 40% new score', () => {
+    expect(updateMastery(100, 3, 50)).toBe(80);
   });
 });

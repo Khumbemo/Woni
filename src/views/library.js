@@ -140,31 +140,40 @@ export const libraryMixin = {
   },
 
   async handleLibraryUpload(event) {
-    const file = event?.target?.files?.[0];
-    if (!file) return;
-
+    const fileInput = event?.target;
+    const file = fileInput?.files?.[0];
     const subjectInput = document.getElementById('lib-upload-subject');
     const subject = subjectInput ? subjectInput.value.trim() : 'General';
     if (!subject) {
       this.showToast('Please enter a subject name.', 'error');
       return;
     }
+    if (!file) {
+      this.showToast('Choose a PDF or TXT file to add.', 'error');
+      return;
+    }
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
+    try {
       // Store as ArrayBuffer (not base64) to save ~33% storage
+      const data = await file.arrayBuffer();
       await this.dbAdd('library', {
         name: file.name,
         exam: this.state.activeLibExam,
-        subject: subject,
-        data: e.target.result,  // ArrayBuffer
-        type: file.type
+        subject,
+        data,
+        type: file.type,
       });
-      this.hideLibraryUploadModal();
-      this.renderLibraryContent();
-      this.showToast('Book added to your shelf!', 'success');
-    };
-    reader.readAsArrayBuffer(file);
+    } catch (e) {
+      console.error('Library upload failed', e);
+      const full = e?.name === 'QuotaExceededError';
+      this.showToast(full ? 'Not enough storage on this device for that file.' : 'Could not add that file. Please try again.', 'error');
+      return;
+    }
+    if (fileInput) fileInput.value = '';
+    if (subjectInput) subjectInput.value = '';
+    this.hideLibraryUploadModal();
+    this.renderLibraryContent();
+    this.showToast('Book added to your shelf!', 'success');
   },
 
   async openLocalBook(id) {
@@ -207,6 +216,14 @@ export const libraryMixin = {
       this.showToast('Please fill all fields and select a PDF.', 'error');
       return;
     }
+    if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) {
+      this.showToast('Shared library books must be PDF files.', 'error');
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      this.showToast('That PDF is over the 50 MB limit.', 'error');
+      return;
+    }
     if (!this.state.user || !this.state.isAdmin) {
       this.showToast('Only admin accounts can upload books to the shared library.', 'error');
       return;
@@ -219,7 +236,7 @@ export const libraryMixin = {
     try {
       const [db, storage] = await Promise.all([this.getDb(), this.getStorage()]);
       const storageRef = storage.ref(`library_books/${exam}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`);
-      const snapshot = await storageRef.put(file);
+      const snapshot = await storageRef.put(file, { contentType: 'application/pdf' });
       const downloadURL = await snapshot.ref.getDownloadURL();
 
       await db.collection('library_books').add({

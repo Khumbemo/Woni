@@ -4,7 +4,7 @@
  */
 import { h, render } from 'preact';
 import FocusTimer from '../components/FocusTimer.jsx';
-import { shuffle, answerToLetter, sm2 } from '../utils.js';
+import { shuffle, answerToLetter, sm2, toPdfText, updateMastery } from '../utils.js';
 
 export const practiceMixin = {
   async updatePracticeView() {
@@ -40,26 +40,31 @@ export const practiceMixin = {
 
   async startMockTest() {
     const examId = document.getElementById('mock-exam-select')?.value;
-    const qCount = parseInt(document.getElementById('mock-q-count')?.value) || 10;
+    const rawCount = parseInt(document.getElementById('mock-q-count')?.value, 10);
+    const qCount = Math.min(100, Math.max(1, Number.isFinite(rawCount) ? rawCount : 10));
     const selectedTopics = Array.from(document.querySelectorAll('#mock-topic-checks input:checked')).map(i => i.value);
+    const started = await this.startTopicTest(examId, selectedTopics, qCount);
+    if (started) this.hideSubView('mock-test-setup');
+  },
 
+  /** Start a mock test from the bank, optionally limited to some topics. Returns false if there were no questions. */
+  async startTopicTest(examId, topics = [], qCount = 10) {
     let allQuestions = await this.dbGetFromIndex('questions', 'exam', examId);
-    if (selectedTopics.length > 0) {
-      allQuestions = allQuestions.filter(q => selectedTopics.includes(q.topic));
+    if (topics.length > 0) {
+      allQuestions = allQuestions.filter(q => topics.includes(q.topic));
     }
-
     if (allQuestions.length === 0) {
       this.showToast('No questions found for the selected criteria.', 'info');
-      return;
+      return false;
     }
-
-    const selected = shuffle(allQuestions).slice(0, qCount);
-    this.hideSubView('mock-test-setup');
-    this.openSession('Mock Test', 'test', selected);
+    this.openSession('Mock Test', 'test', shuffle(allQuestions).slice(0, qCount));
+    return true;
   },
 
   async startFlashcards() {
-    const cards = await this.dbGetAll('flashcards');
+    const examId = this.state.activeExam?.id;
+    // Cards saved before flashcards recorded their exam (no `exam`) show for every exam.
+    const cards = (await this.dbGetAll('flashcards')).filter(c => !examId || !c.exam || c.exam === examId);
     const due = cards.filter(c => c.nextReview <= Date.now()).sort((a, b) => a.nextReview - b.nextReview);
 
     if (due.length === 0) {
@@ -74,7 +79,7 @@ export const practiceMixin = {
   },
 
   openSession(title, type, data) {
-    this.state.session = { title, type, data, index: 0, startTime: Date.now(), answers: [], score: 0 };
+    this.state.session = { title, type, data, index: 0, startTime: Date.now(), answers: [], score: 0, busy: false };
     const titleEl = document.getElementById('session-title');
     if (titleEl) titleEl.textContent = title;
     this.showSubView('active-session-overlay');
@@ -158,7 +163,9 @@ export const practiceMixin = {
   },
 
   nextQuestion() {
-    this.state.session.index++;
+    const s = this.state.session;
+    if (!s || s.answers[s.index] === undefined) return;
+    s.index++;
     this.renderSessionContent();
   },
 
@@ -169,20 +176,28 @@ export const practiceMixin = {
   async rateCard(quality) {
     quality = parseInt(quality);
     const s = this.state.session;
-    const card = s.data[s.index];
-    const { interval, repetition, ease } = sm2(quality, card);
-
-    card.interval = interval;
-    card.repetition = repetition;
-    card.ease = ease;
-    card.nextReview = Date.now() + (interval * 24 * 60 * 60 * 1000);
-    await this.dbPut('flashcards', card);
-    s.index++;
+    // A fast double-tap must not rate this card twice and skip the next one.
+    if (!s || s.busy || !s.data[s.index]) return;
+    s.busy = true;
+    try {
+      const card = s.data[s.index];
+      const { interval, repetition, ease } = sm2(quality, card);
+      card.interval = interval;
+      card.repetition = repetition;
+      card.ease = ease;
+      card.nextReview = Date.now() + (interval * 24 * 60 * 60 * 1000);
+      await this.dbPut('flashcards', card);
+      s.index++;
+    } finally {
+      s.busy = false;
+    }
     this.renderSessionContent();
   },
 
   async renderSessionResults() {
     const s = this.state.session;
+    if (s.resultsSaved) return;
+    s.resultsSaved = true;
     const content = document.getElementById('session-content');
     const footer = document.getElementById('session-footer');
     const timerEl = document.getElementById('session-timer');
@@ -207,9 +222,9 @@ export const practiceMixin = {
         const topicId = `${examId}_${topicName}`;
         let topic = await this.dbGet('topics', topicId);
         if (!topic) topic = { id: topicId, exam: examId, name: topicName, mastery: 0, frequency: 50 };
-        const currentMastery = topic.mastery || 0;
         const sessionMastery = (stats.correct / stats.total) * 100;
-        topic.mastery = Math.round((currentMastery + sessionMastery) / 2);
+        topic.mastery = updateMastery(topic.mastery, topic.attempts, sessionMastery);
+        topic.attempts = (topic.attempts || 0) + 1;
         await this.dbPut('topics', topic);
       }
       await this.dbAdd('mock_tests', { exam: s.data[0].exam, date: Date.now(), score, qCount: s.data.length, duration: timerEl ? timerEl.textContent : '', answers: s.answers, questions: s.data });
@@ -261,24 +276,34 @@ export const practiceMixin = {
     if (!s || !s.data) return;
     const { jsPDF } = await import('jspdf'); // ~350 KB; only needed on export
     const doc = new jsPDF();
-    doc.setFontSize(20); doc.text(`Woni ${s.title} Results`, 20, 20);
-    doc.setFontSize(12); doc.text(`Date: ${new Date().toLocaleString()}`, 20, 30);
-    doc.text(`Exam: ${this.state.activeExam?.name || 'N/A'}`, 20, 40);
+    const PAGE_BOTTOM = 280;
+    let y = 20;
+    // Write wrapped text, starting a new page whenever a line would run off the bottom.
+    const write = (text, { x = 20, size = 12, style = 'normal', gap = 6, width = 170 } = {}) => {
+      doc.setFont('helvetica', style);
+      doc.setFontSize(size);
+      for (const line of doc.splitTextToSize(toPdfText(text), width)) {
+        if (y > PAGE_BOTTOM) { doc.addPage(); y = 20; }
+        doc.text(line, x, y);
+        y += gap;
+      }
+    };
+
+    const examId = s.data[0]?.exam;
+    const examName = this.state.userExams.find(e => e.id === examId)?.name || this.state.activeExam?.name || 'N/A';
     let correctCount = 0;
     s.data.forEach((q, i) => { if (s.answers[i] && s.answers[i] === answerToLetter(q)) correctCount++; });
     const score = Math.round((correctCount / s.data.length) * 100);
-    doc.setFontSize(16); doc.text(`Score: ${score}% (${correctCount}/${s.data.length})`, 20, 55);
-    doc.setFontSize(12); let y = 70;
+
+    write(`Woni ${s.title} Results`, { size: 20, style: 'bold', gap: 10 });
+    write(`Date: ${new Date().toLocaleString()}`);
+    write(`Exam: ${examName}`, { gap: 10 });
+    write(`Score: ${score}% (${correctCount}/${s.data.length})`, { size: 16, style: 'bold', gap: 12 });
     s.data.forEach((q, i) => {
-      if (y > 260) { doc.addPage(); y = 20; }
-      const qText = q.text || q.question || "No text";
-      const lines = doc.splitTextToSize(`${i + 1}. ${qText}`, 170);
-      doc.setFont('helvetica', 'bold');
-      doc.text(lines, 20, y);
-      y += (lines.length * 6);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Your Answer: ${s.answers[i] || 'None'} | Correct: ${answerToLetter(q) || q.answer}`, 25, y);
-      y += 10;
+      write(`${i + 1}. ${q.text || q.question || 'No text'}`, { style: 'bold' });
+      const correct = answerToLetter(q) || q.answer || '?';
+      const mark = s.answers[i] === correct ? 'correct' : 'wrong';
+      write(`Your answer: ${s.answers[i] || 'None'} | Correct: ${correct} (${mark})`, { x: 25, width: 165, gap: 10 });
     });
     this.saveFile(`Woni_Result_${Date.now()}.pdf`, doc.output('blob'));
   },

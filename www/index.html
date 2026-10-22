@@ -24,10 +24,10 @@
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <!-- Critical CSS: the main stylesheet is loaded by JS, so keep hidden UI hidden until then -->
-  <style>.hidden { display: none !important; }</style>
-  <script type="module" crossorigin src="/assets/index-o_M69A7J.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/chunk-jRWAZmH_.js">
-  <link rel="stylesheet" crossorigin href="/assets/index-OVvMpWRV.css">
+  <style>.hidden{display:none!important}</style>
+  <script type="module" crossorigin src="/assets/index-D4249tFf.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-BCiCTKAo.js">
+  <link rel="stylesheet" crossorigin href="/assets/index-DTVkviIs.css">
 <link rel="manifest" href="/manifest.webmanifest"></head>
 <body class="dark-theme">
   <!-- Science Background -->
@@ -44,16 +44,17 @@
         </div>
         <p class="hero-sub">Secure your progress with Cloud Sync</p>
 
-        <div id="auth-form" class="auth-form">
+        <form id="auth-form" class="auth-form" novalidate>
           <div class="form-group">
-            <input type="email" id="auth-email" placeholder="Email Address">
+            <input type="email" id="auth-email" placeholder="Email Address" autocomplete="email" aria-label="Email address" required>
           </div>
           <div class="form-group">
-            <input type="password" id="auth-password" placeholder="Password">
+            <input type="password" id="auth-password" placeholder="Password (6+ characters)" autocomplete="current-password" aria-label="Password" minlength="6" required>
           </div>
-          <button id="auth-submit-btn" class="btn accent large">Sign In / Sign Up</button>
+          <button type="submit" id="auth-submit-btn" class="btn accent large">Sign In / Sign Up</button>
           <p class="auth-toggle">Don't have an account? It will be created automatically.</p>
-        </div>
+          <button type="button" id="forgot-password-btn" class="link-btn">Forgot password?</button>
+        </form>
 
         <div class="divider"><span>OR</span></div>
 

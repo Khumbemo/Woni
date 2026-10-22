@@ -3,7 +3,7 @@
  * Firestore and IndexedDB.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { syncMixin } from '../sync.js';
+import { syncMixin, validateBackup } from '../sync.js';
 import { dbMixin } from '../db.js';
 import { SYNC_STORES } from '../utils.js';
 
@@ -60,6 +60,14 @@ function fakeIdb() {
     },
     async get(name, key) { return structuredClone(store(name).rows.get(key)); },
     async clear(name) { store(name).rows.clear(); },
+    async delete(name, key) { store(name).rows.delete(key); },
+    transaction(names) {
+      const self = this;
+      return {
+        objectStore: name => ({ clear: () => self.clear(name), put: data => self.put(name, data) }),
+        done: Promise.resolve(),
+      };
+    },
   };
 }
 
@@ -70,6 +78,7 @@ function makeDevice(firestore) {
     ...syncMixin,
     state: { db: fakeIdb(), user: { uid: 'u1' }, userExams: [{ id: 'csir_net', name: 'CSIR NET' }], currentView: 'dashboard' },
     getDb: async () => firestore,
+    confirmAction: async () => true,
     showToast: (m, t) => toasts.push([t, m]),
     showView: () => {},
     syncLibExam: () => {},
@@ -154,5 +163,59 @@ describe('cloud sync', () => {
     const profile = fs.docs.get('users/u1');
     expect(profile.questions).toBeUndefined(); // large legacy arrays removed
     expect(Object.keys(SYNC_STORES).some(s => Array.isArray(profile[s]))).toBe(false);
+  });
+});
+
+describe('deletions', () => {
+  it('a deletion on one device removes the record on the other', async () => {
+    const fs = fakeFirestore();
+    const a = makeDevice(fs);
+    const b = makeDevice(fs);
+    await a.dbAdd('questions', { exam: 'csir_net', text: 'Keep', options: ['x', 'y'], answer: 'A' });
+    await a.dbAdd('questions', { exam: 'csir_net', text: 'Remove', options: ['x', 'y'], answer: 'A' });
+    await a.syncWithCloud();
+    storage.clear();
+    await b.syncWithCloud();
+    expect((await b.dbGetAll('questions')).map(q => q.text).sort()).toEqual(['Keep', 'Remove']);
+
+    // Device A deletes "Remove" (as an import would) and syncs.
+    storage.clear();
+    await new Promise(r => setTimeout(r, 5)); // the deletion happens after the record was created
+    const victim = (await a.dbGetAll('questions')).find(q => q.text === 'Remove');
+    await a.state.db.delete('questions', victim.id);
+    a.recordDeletions('questions', [victim.syncId]);
+    await a.syncWithCloud();
+    expect(JSON.parse(storage.get('woni_tombstones')).questions).toEqual({}); // uploaded, so forgotten locally
+
+    storage.clear();
+    await b.syncWithCloud();
+    expect((await b.dbGetAll('questions')).map(q => q.text)).toEqual(['Keep']);
+  });
+
+  it('importing a backup replaces cloud data instead of being undone by the next sync', async () => {
+    const fs = fakeFirestore();
+    const a = makeDevice(fs);
+    await a.dbAdd('questions', { exam: 'csir_net', text: 'Old', options: ['x', 'y'], answer: 'A' });
+    await a.syncWithCloud();
+
+    const backup = { questions: [{ exam: 'csir_net', text: 'From backup', options: ['x', 'y'], answer: 'A' }] };
+    vi.stubGlobal('location', { reload: () => {} });
+    vi.useFakeTimers();
+    await a.importData({ target: { files: [{ text: async () => JSON.stringify(backup) }], value: '' } });
+    vi.useRealTimers();
+    await a.syncWithCloud();
+
+    const fresh = makeDevice(fs);
+    storage.clear();
+    await fresh.syncWithCloud();
+    expect((await fresh.dbGetAll('questions')).map(q => q.text)).toEqual(['From backup']);
+  });
+
+  it('rejects files that are not Woni backups before touching any data', () => {
+    expect(validateBackup([])).toMatch(/not a Woni backup/);
+    expect(validateBackup({ hello: 1 })).toMatch(/not a Woni backup/);
+    expect(validateBackup({ questions: 'nope' })).toMatch(/damaged/);
+    expect(validateBackup({ questions: [null] })).toMatch(/damaged/);
+    expect(validateBackup({ questions: [], userExams: [] })).toBeNull();
   });
 });

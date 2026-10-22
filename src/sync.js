@@ -10,10 +10,46 @@
  */
 import { SYNC_STORES, makeSyncId, planSync } from './utils.js';
 
-const BATCH_LIMIT = 400;          // Firestore allows 500 writes per batch
+const BATCH_LIMIT = 400;
+const BACKUP_STORES = ['papers', 'questions', 'flashcards', 'progress', 'topics', 'mock_tests'];
+
+/** Returns a reason the object isn't a Woni backup, or null if it looks valid. */
+export function validateBackup(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return 'This file is not a Woni backup.';
+  const present = BACKUP_STORES.filter(s => s in data);
+  if (present.length === 0) return 'This file is not a Woni backup (no study data found).';
+  for (const s of present) {
+    if (!Array.isArray(data[s])) return `This backup is damaged: "${s}" is not a list.`;
+    if (data[s].some(item => !item || typeof item !== 'object' || Array.isArray(item))) return `This backup is damaged: "${s}" contains invalid records.`;
+  }
+  if ('userExams' in data && !Array.isArray(data.userExams)) return 'This backup is damaged: "userExams" is not a list.';
+  return null;
+}          // Firestore allows 500 writes per batch
 const CLOCK_SKEW_MS = 5 * 60000;  // re-check a few minutes of overlap between devices
 
+const TOMBSTONE_KEY = 'woni_tombstones';
+
 export const syncMixin = {
+  /** Deleted records not yet uploaded: { store: { syncId: deletedAt } }. */
+  _tombstones() {
+    try {
+      const t = JSON.parse(localStorage.getItem(TOMBSTONE_KEY) || '{}');
+      return t && typeof t === 'object' && !Array.isArray(t) ? t : {};
+    } catch {
+      return {};
+    }
+  },
+
+  /** Remember that these records were deleted, so the next sync deletes them everywhere. */
+  recordDeletions(store, syncIds) {
+    if (!SYNC_STORES[store] || syncIds.length === 0) return;
+    const t = this._tombstones();
+    t[store] ??= {};
+    const now = Date.now();
+    for (const id of syncIds) t[store][id] = now;
+    localStorage.setItem(TOMBSTONE_KEY, JSON.stringify(t));
+  },
+
   _lastSyncKey() {
     return `woni_last_sync_${this.state.user.uid}`;
   },
@@ -39,9 +75,14 @@ export const syncMixin = {
 
   /** Write a downloaded record locally, keeping its cloud updatedAt so it isn't re-uploaded as new. */
   async _applyCloudRecord(store, record, localBySyncId) {
+    const existing = localBySyncId.get(record.syncId);
+    if (record.deleted) {
+      // Deleted on another device (or by an import there).
+      if (existing) await this.state.db.delete(store, existing.id);
+      return;
+    }
     const data = { ...record };
     if (SYNC_STORES[store].autoKey) {
-      const existing = localBySyncId.get(record.syncId);
       if (existing) data.id = existing.id;
       else delete data.id;
     }
@@ -101,13 +142,17 @@ export const syncMixin = {
       });
 
       let pushed = 0, pulled = 0;
+      const uploadedTombstones = {};
       for (const store of Object.keys(SYNC_STORES)) {
         const local = await this._ensureSyncFields(store);
+        // Local deletions take part in the merge as "deleted" records (tombstones).
+        const tombs = Object.entries(this._tombstones()[store] || {})
+          .map(([syncId, updatedAt]) => ({ syncId, updatedAt, deleted: true }));
         const col = userRef.collection(store);
         const since = lastSync ? lastSync - CLOCK_SKEW_MS : 0;
         const snap = since ? await col.where('updatedAt', '>', since).get() : await col.get();
         const cloud = snap.docs.map(d => d.data());
-        const { push, pull } = planSync(local, cloud, since);
+        const { push, pull } = planSync([...local, ...tombs], cloud, since);
 
         for (let i = 0; i < push.length; i += BATCH_LIMIT) {
           const batch = db.batch();
@@ -118,8 +163,15 @@ export const syncMixin = {
         for (const r of pull) await this._applyCloudRecord(store, r, localBySyncId);
         pushed += push.length;
         pulled += pull.length;
+        uploadedTombstones[store] = new Set(push.filter(r => r.deleted).map(r => r.syncId));
       }
 
+      // Tombstones that reached the cloud no longer need to be kept locally.
+      const remaining = this._tombstones();
+      for (const [store, ids] of Object.entries(uploadedTombstones)) {
+        for (const id of ids) delete remaining[store]?.[id];
+      }
+      localStorage.setItem(TOMBSTONE_KEY, JSON.stringify(remaining));
       localStorage.setItem(this._lastSyncKey(), String(startedAt));
       const parts = [`${pushed} uploaded`, `${pulled} downloaded`];
       if (migrated) parts.push(`${migrated} restored from old backup`);
@@ -158,15 +210,28 @@ export const syncMixin = {
     try {
       const text = await file.text();
       const data = JSON.parse(text);
+      // Check the file before touching anything: a wrong file must not wipe the user's data.
+      const problem = validateBackup(data);
+      if (problem) throw new Error(problem);
       if (await this.confirmAction('Importing data will overwrite existing records. Continue?')) {
-        const stores = ['papers', 'questions', 'flashcards', 'progress', 'topics', 'mock_tests'];
-        for (const store of stores) {
-          await this.state.db.clear(store);
-          if (data[store]) {
-            for (const item of data[store]) {
-              await this.dbAdd(store, item);
-            }
+        const before = {};
+        for (const store of BACKUP_STORES) {
+          before[store] = new Set((await this.dbGetAll(store)).map(r => r.syncId).filter(Boolean));
+        }
+        // One transaction across all stores: either everything is replaced or nothing is.
+        const tx = this.state.db.transaction(BACKUP_STORES, 'readwrite');
+        for (const store of BACKUP_STORES) {
+          const os = tx.objectStore(store);
+          await os.clear();
+          for (const item of data[store] || []) {
+            await os.put(this._stampForSync(store, { ...item }));
           }
+        }
+        await tx.done;
+        // Records the import removed must also disappear from the cloud and other devices.
+        for (const store of BACKUP_STORES) {
+          const kept = new Set((data[store] || []).map(r => r.syncId).filter(Boolean));
+          this.recordDeletions(store, [...before[store]].filter(id => !kept.has(id)));
         }
         if (data.userExams) {
           this.state.userExams = data.userExams;
@@ -182,10 +247,15 @@ export const syncMixin = {
   },
 
   async clearAllData() {
-    if (await this.confirmAction('DANGER: This will delete ALL your study data, papers, and progress. Continue?')) {
-      localStorage.clear();
-      indexedDB.deleteDatabase('woni_db');
-      location.reload();
-    }
+    if (!(await this.confirmAction('DANGER: This will delete ALL your study data, papers, and progress on this device. If you sync to the cloud, your cloud copy is kept and returns on the next sync. Continue?'))) return;
+    // Close our own connection first, otherwise the delete is blocked until the page unloads.
+    this.state.db?.close();
+    this.state.db = null;
+    await new Promise(resolve => {
+      const req = indexedDB.deleteDatabase('woni_db');
+      req.onsuccess = req.onerror = req.onblocked = () => resolve();
+    });
+    localStorage.clear();
+    location.reload();
   }
 };

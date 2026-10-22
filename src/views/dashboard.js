@@ -37,7 +37,7 @@ export const dashboardMixin = {
           const top = topics.sort((a, b) => (a.mastery || 0) - (b.mastery || 0)).slice(0, 3);
           recList.className = 'rec-list';
           recList.innerHTML = top.map(t => `
-            <div class="rec-card" data-action="showTopicStudy" data-param="${this.escapeHtml(t.name)}">
+            <div class="rec-card" data-action="showTopicStudy" data-param="${this.escapeHtml(t.name)}" title="Practise ${this.escapeHtml(t.name)}">
               <div class="rec-name">${this.escapeHtml(t.name)}</div>
               <div class="rec-bar"><div class="rec-fill" style="width:${t.mastery || 0}%"></div></div>
               <div class="rec-label">${t.mastery || 0}% mastery · ${t.frequency || 0}% importance</div>
@@ -52,15 +52,19 @@ export const dashboardMixin = {
     }
   },
 
-  showTopicStudy(topicName) {
-    this.showToast('Topic focus: ' + topicName, 'info');
+  /** Recommended-topic card: practise that topic right away. */
+  async showTopicStudy(topicName) {
+    const examId = this.state.activeExam?.id;
+    if (!examId) return;
+    this.showView('practice');
+    const started = await this.startTopicTest(examId, [topicName], 10);
+    if (!started) this.showToast(`No saved questions for ${topicName} yet. Upload a paper that covers it.`, 'info');
   },
 
   async updateBuddy() {
     if (!this.state.db) return;
     const tests = await this.dbGetAll('mock_tests');
-    const streakEl = document.getElementById('dash-streak');
-    const streak = (streakEl && parseInt(streakEl.textContent)) || 0;
+    const streak = computeStreak(tests.map(t => t.date));
 
     // Time-of-day aware greetings
     const hour = new Date().getHours();
