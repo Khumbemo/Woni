@@ -41,16 +41,17 @@
         </div>
         <p class="hero-sub">Secure your progress with Cloud Sync</p>
 
-        <div id="auth-form" class="auth-form">
+        <form id="auth-form" class="auth-form" novalidate>
           <div class="form-group">
-            <input type="email" id="auth-email" placeholder="Email Address">
+            <input type="email" id="auth-email" placeholder="Email Address" autocomplete="email" aria-label="Email address" required>
           </div>
           <div class="form-group">
-            <input type="password" id="auth-password" placeholder="Password">
+            <input type="password" id="auth-password" placeholder="Password (6+ characters)" autocomplete="current-password" aria-label="Password" minlength="6" required>
           </div>
-          <button id="auth-submit-btn" class="btn accent large">Sign In / Sign Up</button>
+          <button type="submit" id="auth-submit-btn" class="btn accent large">Sign In / Sign Up</button>
           <p class="auth-toggle">Don't have an account? It will be created automatically.</p>
-        </div>
+          <button type="button" id="forgot-password-btn" class="link-btn">Forgot password?</button>
+        </form>
 
         <div class="divider"><span>OR</span></div>
 

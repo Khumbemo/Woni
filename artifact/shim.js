@@ -165,9 +165,9 @@ async function addSampleQuestions() {
     const existing = new Set((await app.dbGetFromIndex('questions', 'exam', exam)).map(q => q.text));
     for (const q of SAMPLE_QUESTIONS) {
       if (existing.has(q.text)) continue;
-      await app.dbAdd('questions', { ...q, exam, confidence: 0.9 });
+      const questionId = await app.dbAdd('questions', { ...q, exam, confidence: 0.9 });
       await app.dbAdd('flashcards', {
-        questionId: null, front: q.text,
+        questionId, exam, front: q.text,
         back: `Answer: ${q.answer}) ${q.options[q.answer.charCodeAt(0) - 65]}\n\nExplanation: ${q.explanation}`,
         topic: q.topic, nextReview: Date.now(), interval: 0, repetition: 0, ease: 2.5,
       });

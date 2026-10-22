@@ -1,10 +1,11 @@
-import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.js?url';
+// Legacy build: same API, transpiled for older Android WebViews / Safari.
+import pdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 import { parseJSON } from './utils.js';
 
 // pdf.js and Tesseract are large; load them only when a file is analyzed.
 let pdfjsPromise;
 function loadPdfjs() {
-  pdfjsPromise ??= import('pdfjs-dist').then(lib => {
+  pdfjsPromise ??= import('pdfjs-dist/legacy/build/pdf.mjs').then(lib => {
     lib.GlobalWorkerOptions.workerSrc = pdfWorker;
     return lib;
   });
@@ -18,15 +19,22 @@ export const aiMixin = {
   async extractPDFText(file) {
     const pdfjsLib = await loadPdfjs();
     const ab = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
-    let text = '';
-    const maxPages = Math.min(pdf.numPages, 20);
-    for (let p = 1; p <= maxPages; p++) {
-      const page = await pdf.getPage(p);
-      const content = await page.getTextContent();
-      text += content.items.map(i => i.str).join(' ') + '\n';
+    // Uploaded PDFs are untrusted: never let pdf.js evaluate code from them
+    // (defence in depth against bugs like CVE-2024-4367).
+    const loadingTask = pdfjsLib.getDocument({ data: ab, isEvalSupported: false });
+    const pdf = await loadingTask.promise;
+    try {
+      let text = '';
+      const maxPages = Math.min(pdf.numPages, 20);
+      for (let p = 1; p <= maxPages; p++) {
+        const page = await pdf.getPage(p);
+        const content = await page.getTextContent();
+        text += content.items.map(i => i.str || '').join(' ') + '\n';
+      }
+      return text.trim();
+    } finally {
+      await loadingTask.destroy(); // free the worker's copy of the document
     }
-    return text.trim();
   },
 
   async extractImageText(file) {
@@ -101,7 +109,6 @@ export const aiMixin = {
     topics.forEach(t => {
       t.id = `${examId}_${t.name}`;
       t.exam = examId;
-      t.mastery = 0;
     });
 
     return { questions, topics };

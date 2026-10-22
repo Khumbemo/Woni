@@ -116,8 +116,11 @@ const app = {
   // --- State Loading ---
   loadState() {
     const examsRaw = localStorage.getItem('woni_user_exams');
-    if (examsRaw) {
-      let exams = JSON.parse(examsRaw)
+    let parsed = null;
+    try { parsed = JSON.parse(examsRaw); } catch { /* corrupted value: treat as no exams */ }
+    if (Array.isArray(parsed)) {
+      let exams = parsed
+        .filter(ex => ex && typeof ex.id === 'string')
         .map(ex => ({ ...ex, id: this.EXAM_ID_MIGRATION[ex.id] || ex.id }))
         .filter(ex => this.ALLOWED_EXAMS.includes(ex.id));
       this.state.userExams = exams;
@@ -144,16 +147,24 @@ const app = {
   // --- Event Delegation System ---
   // Replaces all inline onclick="app.X()" handlers with data-action attributes.
   initEventListeners() {
-    let touchStartX = 0;
+    let touchStart = null;
     const mainContent = document.getElementById('main-content');
 
     mainContent.addEventListener('touchstart', e => {
-      touchStartX = e.changedTouches[0].screenX;
+      // Swipes that start in a horizontal scroller or a text field belong to that element.
+      const ignore = e.target.closest('.lib-exam-tabs, input, textarea, select, .sa-chat-log, canvas, .overlay');
+      const t = e.changedTouches[0];
+      touchStart = ignore ? null : { x: t.screenX, y: t.screenY };
     }, { passive: true });
 
     mainContent.addEventListener('touchend', e => {
-      const endX = e.changedTouches[0].screenX;
-      this.handleSwipe(touchStartX, endX);
+      if (!touchStart) return;
+      const t = e.changedTouches[0];
+      const dx = t.screenX - touchStart.x;
+      const dy = t.screenY - touchStart.y;
+      touchStart = null;
+      // Only clearly horizontal gestures switch tabs; diagonal scrolling doesn't.
+      if (Math.abs(dx) > 2 * Math.abs(dy)) this.handleSwipe(0, dx);
     }, { passive: true });
 
     // --- Central Event Delegation ---
@@ -169,6 +180,23 @@ const app = {
       }
     });
 
+    // Keyboard: Enter/Space on a focusable non-button action element acts like a click.
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const target = e.target.closest?.('[data-action][role="button"]');
+      if (!target || target !== e.target) return;
+      e.preventDefault();
+      target.click();
+    });
+    // Give clickable cards rendered anywhere a button role and a tab stop.
+    const makeFocusable = root => root.querySelectorAll?.('[data-action]:not(button):not(a):not(input)').forEach(el => {
+      if (!el.hasAttribute('role')) el.setAttribute('role', 'button');
+      if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+    });
+    makeFocusable(document);
+    new MutationObserver(muts => muts.forEach(m => m.addedNodes.forEach(n => n.nodeType === 1 && (makeFocusable(n.parentNode || n)))))
+      .observe(document.body, { childList: true, subtree: true });
+
     // Navigation items
     document.querySelectorAll('.nav-item').forEach(item => {
       item.addEventListener('click', (e) => {
@@ -181,8 +209,11 @@ const app = {
     const saveExamsBtn = document.getElementById('save-exams-btn');
     if (saveExamsBtn) saveExamsBtn.addEventListener('click', () => this.saveExams());
 
-    const authBtn = document.getElementById('auth-submit-btn');
-    if (authBtn) authBtn.addEventListener('click', () => this.handleAuth());
+    // A real <form>: Enter submits, and password managers recognise it.
+    const authForm = document.getElementById('auth-form');
+    if (authForm) authForm.addEventListener('submit', e => { e.preventDefault(); this.handleAuth(); });
+    const forgotBtn = document.getElementById('forgot-password-btn');
+    if (forgotBtn) forgotBtn.addEventListener('click', () => this.sendPasswordReset());
 
     const guestBtn = document.getElementById('guest-btn');
     if (guestBtn) guestBtn.addEventListener('click', () => this.continueAsGuest());
@@ -244,6 +275,9 @@ const app = {
 
   // --- Onboarding ---
   showOnboarding() {
+    // "Change exams" should start from the current choice, not a blank list.
+    const current = new Set(this.state.userExams.map(ex => ex.id));
+    document.querySelectorAll('.exam-checkbox input').forEach(cb => { cb.checked = current.has(cb.value); });
     this.showSubView('onboarding-overlay');
   },
 
@@ -306,6 +340,10 @@ const app = {
   },
 
   applyTheme() {
+    if (!this._themeMedia && window.matchMedia) {
+      this._themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+      this._themeMedia.addEventListener?.('change', () => { if (this.state.theme === 'system') this.applyTheme(); });
+    }
     const isDark = this.state.theme === 'dark' || (this.state.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.body.classList.toggle('dark-theme', isDark);
     document.body.classList.toggle('light-theme', !isDark);

@@ -157,3 +157,36 @@ export function planSync(local, cloud, lastSync = 0) {
     !((localById.get(r.syncId)?.updatedAt || 0) >= (r.updatedAt || 0)));
   return { push, pull };
 }
+
+/**
+ * jsPDF's built-in fonts only cover Latin-1 (WinAnsi). Spell out the Greek
+ * letters and symbols common in science questions, and replace anything
+ * else outside Latin-1 with '?', instead of printing garbage.
+ */
+const PDF_REPLACEMENTS = {
+  'α': 'alpha', 'β': 'beta', 'γ': 'gamma', 'δ': 'delta', 'ε': 'epsilon', 'ζ': 'zeta', 'η': 'eta',
+  'θ': 'theta', 'ι': 'iota', 'κ': 'kappa', 'λ': 'lambda', 'μ': 'mu', 'ν': 'nu', 'ξ': 'xi', 'π': 'pi',
+  'ρ': 'rho', 'σ': 'sigma', 'ς': 'sigma', 'τ': 'tau', 'υ': 'upsilon', 'φ': 'phi', 'χ': 'chi', 'ψ': 'psi', 'ω': 'omega',
+  'Γ': 'Gamma', 'Δ': 'Delta', 'Θ': 'Theta', 'Λ': 'Lambda', 'Ξ': 'Xi', 'Π': 'Pi', 'Σ': 'Sigma',
+  'Φ': 'Phi', 'Ψ': 'Psi', 'Ω': 'Omega',
+  '→': '->', '←': '<-', '↔': '<->', '⇌': '<=>', '⇒': '=>', '≤': '<=', '≥': '>=', '≠': '!=',
+  '≈': '~', '∞': 'infinity', '−': '-', '‘': "'", '’': "'", '“': '"', '”': '"', '…': '...',
+  '₀': '0', '₁': '1', '₂': '2', '₃': '3', '₄': '4', '₅': '5', '₆': '6', '₇': '7', '₈': '8', '₉': '9',
+  '⁰': '0', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9', '⁺': '+', '⁻': '-',
+};
+export function toPdfText(str) {
+  return Array.from(String(str ?? ''), ch => {
+    if (PDF_REPLACEMENTS[ch] !== undefined) return PDF_REPLACEMENTS[ch];
+    return ch.codePointAt(0) <= 0xff ? ch : '?';
+  }).join('');
+}
+
+/**
+ * Topic mastery after a practice session: the first session sets it
+ * directly; later sessions are an exponentially weighted average, so recent
+ * performance counts most without one session erasing the history.
+ */
+export function updateMastery(previous, attempts, sessionScore, weight = 0.4) {
+  if (!attempts || previous == null) return Math.round(sessionScore);
+  return Math.round(previous * (1 - weight) + sessionScore * weight);
+}

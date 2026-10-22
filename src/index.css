@@ -716,6 +716,16 @@ body {
   padding: 12px 0; border-bottom: 1px solid var(--border);
 }
 .setting-info { min-width: 0; }
+/* Focus timer (rendered inside #focus-timer-overlay) */
+.focus-timer { width: min(100%, 420px); padding: 0 16px; }
+.focus-timer-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 20px 24px 28px; }
+.focus-timer-head { display: flex; align-items: center; justify-content: space-between; }
+.focus-timer-head h2 { font-family: var(--serif); font-size: 22px; }
+.focus-timer-body { display: flex; flex-direction: column; align-items: center; }
+.btn.outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.link-btn { background: none; border: none; color: var(--accent); font: inherit; font-size: 13px; cursor: pointer; padding: 4px; align-self: center; }
+.link-btn:hover { text-decoration: underline; }
+[role="button"]:focus-visible, .link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .setting-info span { display: block; font-weight: 500; }
 .setting-item--stack { flex-direction: column; align-items: stretch; gap: 8px; }
 .setting-field { display: flex; gap: 8px; }

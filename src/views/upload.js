@@ -50,6 +50,13 @@ export const uploadMixin = {
   },
 
   async startAnalysis() {
+    const fileInput = document.getElementById('file-input');
+    // Minimal Upload UI: first tap opens the file picker.
+    if (this.state.uploadFiles.length === 0) {
+      if (fileInput) fileInput.click();
+      return;
+    }
+
     if (!this.state.apiKey) {
       const freemiumCount = this.getFreemiumCount ? this.getFreemiumCount() : parseInt(localStorage.getItem('woni_freemium_count') || '0', 10);
       if (freemiumCount >= 5) {
@@ -65,18 +72,11 @@ export const uploadMixin = {
     const progress = document.getElementById('analysis-progress');
     const fill = document.getElementById('progress-fill');
     const status = document.getElementById('progress-status');
-    const fileInput = document.getElementById('file-input');
     const examId = this.state.activeExam?.id || this.state.userExams[0]?.id;
 
     if (!examId) {
       this.showToast('Please select your target exam first.', 'error');
       this.showOnboarding();
-      return;
-    }
-
-    // Minimal Upload UI: first tap opens file picker.
-    if (this.state.uploadFiles.length === 0) {
-      if (fileInput) fileInput.click();
       return;
     }
 
@@ -98,7 +98,10 @@ export const uploadMixin = {
         else text = await file.text();
 
         extractedTexts.push({ name: file.name, text });
-        await this.dbAdd('papers', { name: file.name, exam: examId, timestamp: Date.now(), text: text.slice(0, 10000) });
+      }
+
+      if (extractedTexts.every(t => !t.text.trim())) {
+        throw new Error('No readable text found. If these are scanned pages, upload them as JPG or PNG images instead.');
       }
 
       if (fill) fill.style.width = '90%';
@@ -108,8 +111,14 @@ export const uploadMixin = {
       if ((analysis.topics || []).length === 0 && (analysis.questions || []).length > 0) {
         analysis.topics = this.makeFallbackTopics(analysis.questions).map(t => ({ ...t, confidence: 0.6 }));
       }
+      if ((analysis.questions || []).length === 0 && (analysis.topics || []).length === 0) {
+        throw new Error('The AI found no questions or topics in these files. Try a clearer or longer paper.');
+      }
       // Only a completed analysis uses up one of the free analyses.
       this.incrementFreemium();
+      for (const t of extractedTexts) {
+        await this.dbAdd('papers', { name: t.name, exam: examId, timestamp: Date.now(), text: t.text.slice(0, 10000) });
+      }
 
       this.state.latestAnalysisContext = {
         examId,
@@ -170,7 +179,7 @@ export const uploadMixin = {
     const flaggedT = p.topics.filter(t => t.issues.length > 0 || t.confidence < 0.6).length;
     summary.textContent = `${p.questions.length} questions, ${p.topics.length} topics · Flagged: ${flaggedQ + flaggedT}`;
 
-    const qRows = p.questions.slice(0, 8).map((q, idx) => `
+    const qRows = p.questions.map((q, idx) => `
       <div class="analysis-review-item">
         <div class="analysis-review-head">
           <label class="analysis-review-title"><input type="checkbox" data-kind="question" data-idx="${idx}" ${q.approved ? 'checked' : ''}> Q${idx + 1}: ${this.escapeHtml(q.topic || 'General')}</label>
@@ -181,7 +190,7 @@ export const uploadMixin = {
       </div>
     `).join('');
 
-    const tRows = p.topics.slice(0, 8).map((t, idx) => `
+    const tRows = p.topics.map((t, idx) => `
       <div class="analysis-review-item">
         <div class="analysis-review-head">
           <label class="analysis-review-title"><input type="checkbox" data-kind="topic" data-idx="${idx}" ${t.approved ? 'checked' : ''}> Topic: ${this.escapeHtml(t.name)}</label>
@@ -213,29 +222,35 @@ export const uploadMixin = {
       return;
     }
 
+    // De-duplicate against the bank and within this batch (case/space-insensitive).
+    const norm = t => String(t || '').trim().replace(/\s+/g, ' ').toLowerCase();
+    const existing = await this.dbGetFromIndex('questions', 'exam', p.examId);
+    const seen = new Set(existing.map(q => norm(q.text)).filter(Boolean));
+    let savedQ = 0, skippedQ = 0;
+
     for (const q of approvedQuestions) {
       const clean = { ...q };
       delete clean.issues; delete clean.approved;
       clean.exam = p.examId;
+      const key = norm(clean.text);
+      if (!key || seen.has(key)) { skippedQ++; continue; }
+      seen.add(key);
 
-      // Deduplication: check if a similar question already exists
-      const existing = await this.dbGetFromIndex('questions', 'exam', p.examId);
-      const isDuplicate = existing.some(eq =>
-        eq.text && clean.text && eq.text.trim().toLowerCase() === clean.text.trim().toLowerCase()
-      );
-      if (isDuplicate) continue;
-
-      await this.dbAdd('questions', clean);
+      const letter = answerToLetter(clean);
+      const answerText = letter ? `${letter}) ${clean.options[letter.charCodeAt(0) - 65]}` : clean.answer;
+      const questionId = await this.dbAdd('questions', clean);
       await this.dbAdd('flashcards', {
-        questionId: null,
+        questionId,
+        exam: p.examId,
         front: clean.text,
-        back: `Answer: ${clean.answer}\n\nExplanation: ${clean.explanation}`,
+        back: `Answer: ${answerText}${clean.explanation ? `\n\nExplanation: ${clean.explanation}` : ''}`,
         topic: clean.topic,
         nextReview: Date.now(),
         interval: 0,
         repetition: 0,
         ease: 2.5
       });
+      savedQ++;
     }
 
     for (const t of approvedTopics) {
@@ -243,13 +258,20 @@ export const uploadMixin = {
       delete clean.issues; delete clean.approved;
       clean.id = `${p.examId}_${clean.name}`;
       clean.exam = p.examId;
+      // Re-analysing a paper must not wipe what the student has already earned.
+      const prev = await this.dbGet('topics', clean.id);
+      if (prev) {
+        clean.mastery = prev.mastery ?? 0;
+        clean.attempts = prev.attempts ?? 0;
+      }
       await this.dbPut('topics', clean);
     }
 
     this.state.pendingAnalysis = null;
     this.renderAnalysisReview();
     await this.updateDashboard();
-    this.showToast(`Saved ${approvedQuestions.length} questions and ${approvedTopics.length} topics to your bank.`, 'success');
+    const dupNote = skippedQ ? ` (${skippedQ} duplicate${skippedQ > 1 ? 's' : ''} skipped)` : '';
+    this.showToast(`Saved ${savedQ} questions and ${approvedTopics.length} topics to your bank${dupNote}.`, 'success');
   },
 
   // --- Analysis Chat Assistant ---

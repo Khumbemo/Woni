@@ -63,6 +63,43 @@ The fixes were also checked by driving the app in Chromium: a new guest now sees
 | 9 | Flashcard "Hard" reset the card | Buttons now use SM-2's own scale (Again 0, Hard 3, Good 4, Easy 5): Hard advances the card and lowers its ease by 0.14. |
 | 10 | Smaller items | Only completed analyses use a free analysis. The proxy's own error is shown to the user. The syllabus-relevance check flags off-syllabus items for review. Fallback topics are derived when the AI returns none. Removed the unused `secondPassVerify`/`getImportantTopics`. Particles follow the theme. Local books open with pop-up blockers on. |
 
+## Phase 3: Done (second audit)
+
+### Dependencies
+| Package | Before | After | Why |
+|---|---|---|---|
+| pdfjs-dist | 3.11 | 6.4 (legacy build) | CVE-2024-4367: a crafted PDF could run JavaScript in versions up to 4.1. Uploaded PDFs are also opened with `isEvalSupported: false`. |
+| jspdf | 2.5 | 4.2 | Several published vulnerabilities (critical) in 2.x/3.x. |
+| firebase | 10.7 | 12.19 (compat API kept) | Advisories in transitive packages; 12.x keeps `firebase/compat/*`. |
+| vite | 8.0 | 8.3 | Dev-server advisories. |
+
+Build-only tools (`vite`, `@preact/preset-vite`, `@capacitor/cli`) moved to devDependencies, and CI now runs on Node 22.
+The one remaining production advisory is `@grpc/grpc-js` via Firestore. Even the latest Firestore pins grpc 1.9, the advisories concern grpc **servers**, and the browser build doesn't include grpc (checked: no grpc code in `www/assets`). Remaining dev-tool advisories (firebase-tools, firebase-admin, Capacitor CLI) only affect tools run on a developer machine and have no non-breaking fix yet.
+
+### App bugs
+| Area | Bug | Fix |
+|---|---|---|
+| Import | Importing any JSON (e.g. the wrong file) cleared all study data first | The file is validated before anything is touched, and the replacement happens in one transaction (all or nothing) |
+| Reset | `deleteDatabase` was blocked by the app's own open connection, so data could survive "Reset" | Close the connection, wait for the delete, then reload |
+| Analysis | Re-analysing a paper reset topic mastery to 0 | Keep mastery and attempts when a topic already exists |
+| Analysis | The review list showed only the first 8 items but saved all approved ones | Every item is shown and reviewable |
+| Analysis | Duplicates within one batch weren't caught; the "Saved N" count included skipped duplicates | De-duplication across the bank and the batch, with accurate counts |
+| Analysis | Scanned PDFs with no text, or an empty AI result, still used a free analysis and showed "complete" | A clear error for each case, and the free use isn't spent; papers are saved only after a successful analysis |
+| Flashcards | Showed "Answer: B" without the option text, and mixed cards from every exam | Answer text included; cards record their exam and practice is filtered to the current exam |
+| Flashcards | A fast double-tap rated a card twice and skipped the next one | Ratings are ignored while one is saving |
+| Mastery | The first test was averaged with 0, so a perfect first test showed 50% | First session sets mastery; later sessions use a 60/40 weighted average |
+| Mock test | A negative or empty question count dropped questions | Clamped to 1–100 |
+| PDF export | Greek letters and symbols (α, β, ΔG, ≤, H₂O) came out garbled; long questions ran off the page | Symbols are spelled out for the PDF fonts, and text wraps with page breaks; the correct exam name is used |
+| Dashboard | "Recommended" cards only showed a toast; the buddy read a stale streak | Tapping a card starts a 10-question test on that topic; the streak is computed directly |
+| Focus timer | Counted ticks, so it drifted badly in background tabs (throttled to ~1/min); the progress bar used undefined CSS variables and was invisible | Counts down to a wall-clock end time and catches up when you return; styled card and visible progress bar |
+| Sign-in | Enter didn't submit; raw Firebase error text; no password reset | A real form (Enter, password managers), friendly messages, and "Forgot password?" |
+| Navigation | Diagonal scrolls and swipes in the exam tabs switched views | Only clearly horizontal swipes outside scrollers and inputs switch views |
+| Accessibility | Clickable cards weren't reachable by keyboard | `role="button"`, `tabindex`, and Enter/Space activation for all action cards |
+| Settings | "Change exams" opened with nothing ticked; "System" theme ignored OS changes; corrupted saved exams stopped start-up | Pre-ticked current exams; live theme updates; corrupted values ignored |
+| Library | Adding a book with no file did nothing; read errors were silent; admin could pick non-PDFs and get a cryptic rules error | Clear messages, storage-full handling, and a PDF/50 MB check before upload |
+| Sync | Deletions didn't sync, so an Import was undone by the next sync | Deletion markers ("tombstones") sync like records; newest change wins |
+| Offline | pdf.js 6's `.mjs` worker wasn't in the offline cache | `mjs` added to the service-worker precache |
+
 ## Steps only you can do
 
 These need your Firebase or Cloudflare accounts:
@@ -74,6 +111,6 @@ These need your Firebase or Cloudflare accounts:
 
 ## Known limits
 
-- Sync does not propagate deletions. The app only deletes through Reset and Import, and a reset device re-downloads its data on the next sync.
+- Reset is per device: a signed-in user's cloud copy is kept and comes back on the next sync (Import is the way to replace data everywhere).
 - Sync compares device clocks. A device whose clock is badly wrong can win or lose conflicts it shouldn't. The incremental pull re-checks a 5-minute overlap.
 - Firebase still uses the compat SDK. Moving to the modular SDK would shrink the bundle further.

@@ -17,6 +17,21 @@ export const firebaseConfig = {
   appId: env.VITE_FIREBASE_APP_ID || '1:802707408926:android:f561524d07bee95524c60f',
 };
 
+const AUTH_ERRORS = {
+  'auth/invalid-email': "That email address doesn't look right.",
+  'auth/missing-password': 'Enter your password.',
+  'auth/weak-password': 'Use a password of at least 6 characters.',
+  'auth/too-many-requests': 'Too many attempts. Wait a few minutes and try again.',
+  'auth/network-request-failed': 'No internet connection. Check your connection, or continue as a guest.',
+  'auth/user-disabled': 'This account has been disabled.',
+  'auth/operation-not-allowed': 'Email sign-in is not enabled for this app yet.',
+};
+
+/** A message a student can act on, instead of Firebase's raw error text. */
+export function authErrorMessage(e) {
+  return AUTH_ERRORS[e?.code] || e?.message || 'Something went wrong. Please try again.';
+}
+
 export const authMixin = {
   initFirebase() {
     if (!firebase.apps.length) {
@@ -87,7 +102,7 @@ export const authMixin = {
   },
 
   async handleAuth() {
-    const email = document.getElementById('auth-email').value;
+    const email = document.getElementById('auth-email').value.trim();
     const password = document.getElementById('auth-password').value;
     const btn = document.getElementById('auth-submit-btn');
 
@@ -120,10 +135,25 @@ export const authMixin = {
       }
       localStorage.removeItem('woni_guest_mode');
     } catch (e) {
-      this.showToast(e.message, 'error');
+      this.showToast(authErrorMessage(e), 'error');
     } finally {
       btn.disabled = false;
       btn.textContent = 'Sign In / Sign Up';
+    }
+  },
+
+  async sendPasswordReset() {
+    const email = document.getElementById('auth-email')?.value.trim();
+    if (!email) {
+      this.showToast('Enter your email address above, then tap "Forgot password?" again.', 'info');
+      return;
+    }
+    try {
+      await firebase.auth().sendPasswordResetEmail(email);
+      // Same message whether or not the account exists (don't reveal which emails are registered).
+      this.showToast(`If an account exists for ${email}, a password reset link is on its way.`, 'success');
+    } catch (e) {
+      this.showToast(authErrorMessage(e), 'error');
     }
   },
 
