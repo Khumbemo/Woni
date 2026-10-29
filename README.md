@@ -5,6 +5,7 @@ Woni is a specialized exam preparation app designed for students targeting **CSI
 ## ✨ Features
 
 - **Multi-Exam Support**: Choose from CSIR NET, GATE Life Science, SLET, or NPSC CCE.
+- **Phone, Tablet & Desktop**: Bottom tab bar on phones and tablets, a sidebar on laptops and desktops (1024px+), full-screen tests on every size, and keyboard shortcuts (A–D, Enter, Space, 1–4, Esc) on computers. Installable as an app from the browser.
 - **Offline-First Storage**: All your papers, questions, and progress are stored locally using IndexedDB.
 - **Cloud Sync & Authentication**: Securely back up your data to Firebase and sync across devices.
 - **Guest Mode**: Use the app entirely offline without creating an account.

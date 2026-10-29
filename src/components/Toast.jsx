@@ -32,7 +32,8 @@ export default function Toast() {
   return (
     <div style={{
       position: 'fixed',
-      bottom: '90px',
+      bottom: 'var(--toast-bottom, 90px)',
+      marginLeft: 'calc(var(--nav-w, 0px) / 2)',
       left: '50%',
       transform: 'translateX(-50%)',
       display: 'flex',

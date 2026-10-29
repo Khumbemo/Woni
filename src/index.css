@@ -26,6 +26,11 @@
 
   /* Layout */
   --nav-h: 72px;
+  --nav-w: 0px;                                   /* sidebar width (desktop) */
+  --safe-bottom: env(safe-area-inset-bottom, 0px); /* iPhone home indicator */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --content-max: 760px;                            /* readable column width */
+  --toast-bottom: calc(var(--nav-h) + var(--safe-bottom) + 18px);
   --radius: 12px;
 }
 
@@ -52,7 +57,10 @@ body {
 /* App Container */
 .app-container {
   display: flex; flex-direction: column;
-  height: 100vh; width: 100vw;
+  /* dvh = the visible height on phones (100vh includes the area behind the address bar) */
+  height: 100vh; height: 100dvh; width: 100%;
+  padding-left: var(--nav-w);
+  padding-top: var(--safe-top);
   position: relative;
   z-index: 1;
 }
@@ -83,11 +91,11 @@ body {
 /* Content Area */
 .content-area {
   flex: 1; overflow-y: auto; overflow-x: hidden;
-  padding-bottom: calc(var(--nav-h) + 20px);
+  padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 20px);
 }
 
 /* Views */
-.view { display: none; padding: 20px; animation: viewEnter 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.view { display: none; padding: 20px; width: 100%; max-width: var(--content-max); margin: 0 auto; animation: viewEnter 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .view.active { display: block; }
 
 @keyframes viewEnter {
@@ -98,7 +106,8 @@ body {
 /* Bottom Nav — Glassmorphism */
 .bottom-nav {
   position: fixed; bottom: 0; left: 0; right: 0;
-  height: var(--nav-h);
+  height: calc(var(--nav-h) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom) !important;
   background: rgba(20, 20, 24, 0.82);
   backdrop-filter: blur(18px) saturate(1.6);
   -webkit-backdrop-filter: blur(18px) saturate(1.6);
@@ -135,6 +144,8 @@ body {
   from { transform: translateX(-50%) scale(0); }
   to   { transform: translateX(-50%) scale(1); }
 }
+.nav-brand { display: none; }
+.nav-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .nav-icon { display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; }
 .nav-icon svg { width: 100%; height: 100%; transition: transform 0.25s ease; }
 .nav-item.active .nav-icon { transform: translateY(-2px); }
@@ -143,7 +154,9 @@ body {
 .overlay {
   position: fixed; inset: 0; z-index: 1000;
   background: rgba(12, 12, 15, 0.92);
-  display: flex; align-items: center; justify-content: center;
+  /* Centre when it fits, scroll from the top when it doesn't (short landscape screens) */
+  display: flex; align-items: flex-start; justify-content: center;
+  overflow-y: auto; overscroll-behavior: contain;
   backdrop-filter: blur(16px) saturate(1.4);
   -webkit-backdrop-filter: blur(16px) saturate(1.4);
   padding: 20px;
@@ -154,6 +167,7 @@ body {
   to   { opacity: 1; }
 }
 .overlay.hidden { display: none; }
+.overlay > * { margin-block: auto; }
 .overlay-content {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 20px; padding: 32px; width: 100%; max-width: 480px;
@@ -675,10 +689,24 @@ body {
 .timer-controls { display: flex; gap: 16px; justify-content: center; }
 
 /* Session Overlay */
+#active-session-overlay { padding: 0; background: var(--bg); }
 .session-container {
-  background: var(--bg); width: 100%; height: 100%;
+  background: var(--bg); width: 100%; height: 100%; min-height: 100%;
   display: flex; flex-direction: column;
+  padding-top: var(--safe-top); padding-bottom: var(--safe-bottom);
 }
+/* Keep the question, options and buttons in a readable column on wide screens
+   (more specific than the base .session-* rules further down, which set padding: 20px) */
+.session-container > .session-header,
+.session-container > .session-content,
+.session-container > .session-footer {
+  padding-inline: max(20px, calc((100% - 760px) / 2));
+}
+.close-session {
+  width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text); font-size: 16px; cursor: pointer;
+}
+.close-session:hover { border-color: var(--border-hover); }
 .session-header {
   padding: 16px 20px; border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
@@ -782,18 +810,104 @@ body {
   transition: background-color 0.35s ease, border-color 0.35s ease, color 0.3s ease;
 }
 
-/* Responsive Adjustments */
-@media (min-width: 768px) {
-  .app-container { max-width: 900px; margin: 0 auto; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
-  .stats-grid { grid-template-columns: repeat(3, 1fr); gap: 24px; }
-  .lib-subjects { grid-template-columns: repeat(2, 1fr); }
-  .lib-subject-group { grid-column: span 2; }
+/* ============================================================
+   Responsive layout: phone (default) → tablet → laptop/desktop
+   ============================================================ */
+
+/* Keyboard hints only where there is a real keyboard and mouse */
+.kbd-hint { display: none; font-size: 12px; color: var(--muted2); margin: -12px 0 16px; }
+@media (hover: hover) and (pointer: fine) { .kbd-hint { display: block; } }
+
+/* Touch screens: 16px inputs stop iOS zooming in on every tap; bigger hit areas */
+@media (pointer: coarse) {
+  input, select, textarea, .search-input { font-size: 16px; }
+  .option-btn, .btn { min-height: 44px; }
 }
 
-@media (min-width: 1200px) {
-  .app-container { max-width: 1100px; }
-  .lib-subjects { grid-template-columns: repeat(2, 1fr); gap: 40px; }
+/* Tablet and up (≥ 600px) */
+@media (min-width: 600px) {
+  :root { --content-max: 860px; }
+  .view { padding: 28px; }
   .practice-options { grid-template-columns: repeat(2, 1fr); }
+  .exam-selection-grid { grid-template-columns: repeat(2, 1fr); }
+  .overlay-content { max-width: 640px; }
+  .heatmap-container { grid-template-columns: repeat(3, 1fr); }
+  .rec-list { grid-template-columns: repeat(2, 1fr); }
+  .stats-grid { gap: 20px; }
+  .stat-value { font-size: 26px; }
+  .nav-item { font-size: 12px; }
+  .bottom-nav { padding-inline: max(10px, calc((100% - 720px) / 2)); }
+}
+
+/* Laptop / desktop (≥ 1024px): the tab bar becomes a left sidebar */
+@media (min-width: 1024px) {
+  :root {
+    --nav-h: 0px;
+    --nav-w: 232px;
+    --content-max: 1080px;
+    --toast-bottom: 28px;
+  }
+  .bottom-nav {
+    top: 0; bottom: 0; right: auto; width: var(--nav-w); height: auto;
+    flex-direction: column; align-items: stretch; justify-content: flex-start;
+    gap: 4px; padding: calc(24px + var(--safe-top)) 14px 24px !important;
+    border-top: none; border-right: 1px solid rgba(255,255,255,0.06);
+    box-shadow: none;
+  }
+  .light-theme .bottom-nav { border-right-color: rgba(0,0,0,0.08); }
+  .nav-brand {
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 14px 24px; margin-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-item {
+    flex: 0 0 auto; flex-direction: row; justify-content: flex-start;
+    gap: 12px; padding: 11px 14px; font-size: 14px; border-radius: 10px;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: rgba(249, 115, 22, 0.12); }
+  .nav-item.active::after {
+    top: 50%; left: 0; width: 3px; height: 18px; border-radius: 0 3px 3px 0;
+    transform: translateY(-50%); animation: none;
+  }
+  .nav-item.active .nav-icon { transform: none; }
+  .content-area { padding-bottom: 32px; }
+  .view { padding: 32px 40px; }
+  .practice-options { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+  .rec-list { grid-template-columns: repeat(3, 1fr); }
+  .heatmap-container { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  .lib-subjects { gap: 32px; }
+  .bookshelf { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+  .settings-list { max-width: 760px; }
+  .dashboard-lively { margin-bottom: 24px; }
+  .q-text { font-size: 20px; }
+}
+
+/* Wide desktop (≥ 1280px): chart and topic heatmap side by side */
+@media (min-width: 1280px) {
+  .progress-dashboard { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 24px; align-items: start; }
+  .progress-dashboard .chart-card { margin-bottom: 0; }
+  .heatmap-container { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Large monitors (≥ 1600px) */
+@media (min-width: 1600px) {
+  :root { --content-max: 1240px; --nav-w: 260px; }
+}
+
+/* Phones in landscape: short screen, so a compact tab bar and tighter spacing */
+@media (max-height: 500px) and (orientation: landscape) and (max-width: 1023px) {
+  :root { --nav-h: 52px; }
+  .nav-item { flex-direction: row; gap: 6px; padding: 6px 0; font-size: 11px; }
+  .nav-item.active::after { display: none; }
+  .view { padding: 14px 20px; }
+  .dashboard-lively { margin-bottom: 14px; }
+  .buddy-avatar { width: 44px; height: 44px; }
+  .overlay { padding: 12px; }
+  .overlay-content { padding: 20px; }
+  .session-header { padding-block: 8px; }
+  .session-footer { padding-block: 10px; }
+  .exam-selection-grid { margin: 12px 0; }
 }
 
 /* Ensure proper scrolling */

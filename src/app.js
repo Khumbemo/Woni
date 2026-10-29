@@ -197,6 +197,9 @@ const app = {
     new MutationObserver(muts => muts.forEach(m => m.addedNodes.forEach(n => n.nodeType === 1 && (makeFocusable(n.parentNode || n)))))
       .observe(document.body, { childList: true, subtree: true });
 
+    // Keyboard shortcuts inside test / flashcard sessions
+    document.addEventListener('keydown', e => this.handleSessionKey(e));
+
     // Navigation items
     document.querySelectorAll('.nav-item').forEach(item => {
       item.addEventListener('click', (e) => {

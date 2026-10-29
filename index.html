@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Woni — AI Exam Intelligence</title>
   <meta name="description" content="AI-powered exam preparation for CSIR NET, GATE Life Science, UGC NET, SLET & NPSC. Upload papers, extract questions with AI, practice with spaced repetition flashcards, and track your mastery." />
   <meta name="theme-color" content="#0c0c0f" />
@@ -184,7 +184,7 @@
           <input type="file" id="file-input" class="hidden" multiple accept=".pdf,.txt,.jpg,.jpeg,.png"/>
 
           <div id="drop-zone" class="drop-zone">
-            <p>Drag & drop files here, or tap to browse</p>
+            <p>Drag & drop files here, or choose files</p>
             <p class="muted">PDF, TXT, JPG, PNG supported</p>
           </div>
 
@@ -286,27 +286,6 @@
           </div>
         </div>
 
-        <!-- Focus Timer View (Overlay) -->
-        <div id="focus-timer-overlay" class="overlay hidden">
-          <div id="focus-timer-mount"></div>
-        </div>
-
-        <!-- Active Mock Test / Flashcards View (Overlay) -->
-        <div id="active-session-overlay" class="overlay hidden">
-          <div class="session-container">
-             <div id="session-header" class="session-header sticky-header">
-               <span id="session-title">Mock Test</span>
-               <span id="session-timer" class="mono">00:00</span>
-               <button class="close-session" data-action="exitSession">✕</button>
-             </div>
-             <div id="session-content" class="session-content">
-               <!-- Content injected by JS -->
-             </div>
-             <div id="session-footer" class="session-footer">
-               <!-- Footer buttons injected by JS -->
-             </div>
-          </div>
-        </div>
       </section>
 
       <!-- Progress View -->
@@ -496,9 +475,37 @@
 
     </main>
 
+    <!-- Full-screen overlays live outside the views: a view's entrance animation
+         leaves a transform that would trap position:fixed children. -->
+    <!-- Focus Timer View (Overlay) -->
+    <div id="focus-timer-overlay" class="overlay hidden">
+      <div id="focus-timer-mount"></div>
+    </div>
+
+    <!-- Active Mock Test / Flashcards View (Overlay) -->
+    <div id="active-session-overlay" class="overlay hidden">
+      <div class="session-container">
+         <div id="session-header" class="session-header sticky-header">
+           <span id="session-title">Mock Test</span>
+           <span id="session-timer" class="mono">00:00</span>
+           <button class="close-session" data-action="exitSession">✕</button>
+         </div>
+         <div id="session-content" class="session-content">
+           <!-- Content injected by JS -->
+         </div>
+         <div id="session-footer" class="session-footer">
+           <!-- Footer buttons injected by JS -->
+         </div>
+      </div>
+    </div>
+
     <!-- Bottom Navigation -->
-    <nav class="bottom-nav">
-      <button class="nav-item active" data-view="dashboard">
+    <nav class="bottom-nav" aria-label="Main">
+      <div class="nav-brand" aria-hidden="true">
+        <div class="woni-dot-small">W</div>
+        <span class="woni-wordmark-small">Woni</span>
+      </div>
+      <button class="nav-item active" data-view="dashboard" aria-current="page">
         <span class="nav-icon"><i data-lucide="home"></i></span>
         <span class="nav-label">Home</span>
       </button>

@@ -105,6 +105,7 @@ export const practiceMixin = {
       content.innerHTML = `
         <div class="q-header">Question ${s.index + 1} of ${s.data.length}</div>
         <div class="q-text">${this.escapeHtml(item.text)}</div>
+        <p class="kbd-hint">Keyboard: A–D to answer · Enter for next · Esc to exit</p>
         <div class="options-grid">
           ${(item.options || []).map((opt, i) => `
             <button class="option-btn" data-action="selectOption" data-param="${i}">
@@ -123,6 +124,7 @@ export const practiceMixin = {
           <div class="card-back">${this.escapeHtml(item.back)}</div>
         </div>
         <p class="muted" style="text-align:center;margin-top:16px">Tap card to flip</p>
+        <p class="kbd-hint" style="text-align:center">Keyboard: Space to show answer · 1 Again · 2 Hard · 3 Good · 4 Easy</p>
       `;
       footer.innerHTML = `
         <div class="sm2-btns hidden" id="sm2-btns">
@@ -134,6 +136,31 @@ export const practiceMixin = {
         </div>
         <button class="btn accent large" id="show-answer-btn" data-action="showFlashAnswer">Show Answer</button>
       `;
+    }
+  },
+
+  /** Keyboard shortcuts while a test or flashcard session is open (laptops/desktops). */
+  handleSessionKey(e) {
+    const overlay = document.getElementById('active-session-overlay');
+    const s = this.state.session;
+    if (!s || !overlay || overlay.classList.contains('hidden')) return;
+    if (e.target.closest?.('input, textarea, select') || e.ctrlKey || e.metaKey || e.altKey) return;
+    const key = e.key.toLowerCase();
+    if (key === 'escape') { e.preventDefault(); this.exitSession(s.data[s.index] ? undefined : 'force'); return; }
+    if (!s.data[s.index]) return; // results screen
+    if (s.type === 'test') {
+      const letterIdx = 'abcdefgh'.indexOf(key);
+      const numIdx = '12345678'.indexOf(key);
+      const idx = letterIdx >= 0 ? letterIdx : numIdx;
+      if (idx >= 0 && idx < (s.data[s.index].options || []).length) { e.preventDefault(); this.selectOption(idx); }
+      else if (key === 'enter' || key === 'arrowright') { e.preventDefault(); this.nextQuestion(); }
+    } else {
+      const answerShown = !document.getElementById('sm2-btns')?.classList.contains('hidden');
+      if ((key === ' ' || key === 'enter') && !answerShown) { e.preventDefault(); this.showFlashAnswer(); }
+      else if (answerShown && ['1', '2', '3', '4'].includes(key)) {
+        e.preventDefault();
+        this.rateCard({ 1: 0, 2: 3, 3: 4, 4: 5 }[key]);
+      }
     }
   },
 
