@@ -100,6 +100,23 @@ The one remaining production advisory is `@grpc/grpc-js` via Firestore. Even the
 | Sync | Deletions didn't sync, so an Import was undone by the next sync | Deletion markers ("tombstones") sync like records; newest change wins |
 | Offline | pdf.js 6's `.mjs` worker wasn't in the offline cache | `mjs` added to the service-worker precache |
 
+## Phase 4: Done (phone, tablet and desktop)
+
+Checked every page at 390×844 (phone), 844×390 (phone landscape), 820×1180 and 1180×820 (tablet), 1440×900 (laptop) and 1920×1080 (desktop).
+
+| Problem | Fix |
+|---|---|
+| Test and Focus Timer screens were clipped inside the Practice page, with the tab bar on top (the page's entrance animation leaves a `transform`, which traps `position: fixed` children). Option D was cut off on phones; on laptops the options were a sliver. | Overlays moved out of the views; the test screen fills the screen with a centred 760px column |
+| Desktop: the bottom tab bar stretched across the whole screen | From 1024px wide, navigation becomes a left sidebar with the Woni brand; content is centred up to 1080px (1240px on large monitors) |
+| Tablets: single-column cards with large empty areas | Two-column practice cards, exam picker and recommendations; three-column topic heatmap |
+| Wide screens: the chart and heatmap were stacked with a very tall chart | Side by side from 1280px |
+| Phone landscape: the 72px tab bar took a fifth of the screen; the exam picker couldn't scroll to Continue | Compact 52px bar; overlays scroll when taller than the screen |
+| `100vh` on phones includes the area behind the address bar, so the tab bar could sit partly off-screen | `100dvh`, plus iPhone safe-area padding (`viewport-fit=cover`) |
+| Zoom was disabled (`user-scalable=no`), and 14px inputs made iPhones zoom in on every tap | Zoom allowed; 16px inputs and 44px minimum targets on touch screens |
+| Laptops had no keyboard support in tests | A–D/1–4 to answer, Enter for next, Esc to exit; flashcards: Space shows the answer, 1–4 rate (hints show only with a mouse and keyboard) |
+
+Covered by `tests/e2e/responsive.spec.js`: no sideways scrolling on any page, the right navigation per size, and a full-screen session at four sizes.
+
 ## Steps only you can do
 
 These need your Firebase or Cloudflare accounts:

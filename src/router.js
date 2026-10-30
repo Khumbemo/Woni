@@ -21,7 +21,10 @@ export const routerMixin = {
     if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'smooth' });
 
     document.querySelectorAll('.nav-item').forEach(n => {
-      n.classList.toggle('active', n.dataset.view === viewId);
+      const isActive = n.dataset.view === viewId;
+      n.classList.toggle('active', isActive);
+      if (isActive) n.setAttribute('aria-current', 'page');
+      else n.removeAttribute('aria-current');
     });
 
     if (viewId === 'dashboard') this.updateDashboard();

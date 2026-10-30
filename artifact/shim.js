@@ -86,7 +86,7 @@ app.openExternal = url => {
 
 const style = document.createElement('style');
 style.textContent = `
-  .wa-banner { position: fixed; top: env(safe-area-inset-top, 0px); left: 0; right: 0; z-index: 10000;
+  .wa-banner { position: fixed; top: env(safe-area-inset-top, 0px); left: var(--nav-w, 0px); right: 0; z-index: 10000;
     display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 16px;
     background: var(--surface2); border-bottom: 1px solid var(--border); color: var(--text);
     font: 13px/1.4 var(--sans); }
