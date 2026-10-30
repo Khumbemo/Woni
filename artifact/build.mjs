@@ -23,6 +23,8 @@ fs.copyFileSync(path.join(root, 'artifact', 'shim.js'), path.join(outDir, 'shim.
 for (const f of fs.readdirSync(outDir)) {
   if (/^(sw\.js|workbox-.*\.js|manifest\.(json|webmanifest)|registerSW\.js)$/.test(f)) fs.rmSync(path.join(outDir, f));
 }
+// The Artifact host doesn't serve Tesseract's .gz language data, so OCR is off in the preview.
+fs.rmSync(path.join(outDir, 'tesseract'), { recursive: true, force: true });
 
 // The Artifact host rejects files containing raw control characters. In the
 // bundles they only occur inside string/regex literals (pdf.js, jsPDF and

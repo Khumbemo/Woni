@@ -195,7 +195,7 @@ banner.setAttribute('role', 'region');
 banner.setAttribute('aria-label', 'Preview notes');
 banner.innerHTML = `
   <p><strong>Preview build.</strong> AI features run on Claude (it asks your permission first).
-  Sign-in, cloud sync and image OCR need the network, so they are off here. Data stays in this browser.</p>
+  Sign-in, cloud sync and OCR (photos, scanned PDFs) are off here. Data stays in this browser.</p>
   <button class="wa-btn primary" id="wa-sample-btn">Add sample questions</button>
   <button class="wa-btn" id="wa-hide-btn" aria-label="Hide preview notes">Hide</button>`;
 document.body.appendChild(banner);
