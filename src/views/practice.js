@@ -53,10 +53,14 @@ export const practiceMixin = {
     if (topics.length > 0) {
       allQuestions = allQuestions.filter(q => topics.includes(q.topic));
     }
+    // Questions reported as wrong stay out of tests until they are fixed.
+    const reported = allQuestions.filter(q => q.flagged).length;
+    allQuestions = allQuestions.filter(q => !q.flagged);
     if (allQuestions.length === 0) {
-      this.showToast('No questions found for the selected criteria.', 'info');
+      this.showToast(reported ? 'All matching questions are reported as wrong. Fix them in Question Bank.' : 'No questions found for the selected criteria.', 'info');
       return false;
     }
+    if (reported) this.showToast(`${reported} reported question${reported > 1 ? 's' : ''} left out.`, 'info');
     this.openSession('Mock Test', 'test', shuffle(allQuestions).slice(0, qCount));
     return true;
   },
@@ -64,7 +68,7 @@ export const practiceMixin = {
   async startFlashcards() {
     const examId = this.state.activeExam?.id;
     // Cards saved before flashcards recorded their exam (no `exam`) show for every exam.
-    const cards = (await this.dbGetAll('flashcards')).filter(c => !examId || !c.exam || c.exam === examId);
+    const cards = (await this.dbGetAll('flashcards')).filter(c => !c.flagged && (!examId || !c.exam || c.exam === examId));
     const due = cards.filter(c => c.nextReview <= Date.now()).sort((a, b) => a.nextReview - b.nextReview);
 
     if (due.length === 0) {
@@ -125,6 +129,7 @@ export const practiceMixin = {
         </div>
         <p class="muted" style="text-align:center;margin-top:16px">Tap card to flip</p>
         <p class="kbd-hint" style="text-align:center">Keyboard: Space to show answer · 1 Again · 2 Hard · 3 Good · 4 Easy</p>
+        <p style="text-align:center"><button class="btn small" id="report-card-btn" data-action="reportFlashcard">Report wrong card</button></p>
       `;
       footer.innerHTML = `
         <div class="sm2-btns hidden" id="sm2-btns">
@@ -241,7 +246,9 @@ export const practiceMixin = {
         if (s.answers[i] && s.answers[i] === answerToLetter(q)) { correctCount++; topicStats[topicName].correct++; }
       });
       const score = Math.round((correctCount / s.data.length) * 100);
-      content.innerHTML = `<div class="results-box"><div class="res-score">${score}%</div><p>${correctCount} correct out of ${s.data.length}</p><p class="muted">Time: ${timerEl ? timerEl.textContent : ''}</p><button class="btn small accent" data-action="exportSessionPDF" style="margin-top:20px">Export Results PDF</button></div>`;
+      content.innerHTML = `<div class="results-box"><div class="res-score">${score}%</div><p>${correctCount} correct out of ${s.data.length}</p><p class="muted">Time: ${timerEl ? timerEl.textContent : ''}</p><button class="btn small accent" data-action="exportSessionPDF" style="margin-top:20px">Export Results PDF</button></div>
+        <h4 class="review-heading">Review answers</h4>
+        <div class="results-review">${s.data.map((q, i) => this.renderReviewItem(q, i, s.answers[i])).join('')}</div>`;
 
       for (const topicName in topicStats) {
         const stats = topicStats[topicName];
@@ -259,6 +266,25 @@ export const practiceMixin = {
       content.innerHTML = `<div class="results-box"><h3>Review Complete!</h3><p>You've reviewed ${s.data.length} cards today.</p></div>`;
     }
     footer.innerHTML = `<button class="btn accent large" data-action="exitSession" data-param="force">Finish</button>`;
+  },
+
+  /** One question in the post-test review: the student's answer, the key, the explanation. */
+  renderReviewItem(q, i, given) {
+    const correct = answerToLetter(q);
+    const opt = letter => {
+      const text = letter ? (q.options || [])[letter.charCodeAt(0) - 65] : undefined;
+      return letter ? `${letter}${text !== undefined ? `) ${this.escapeHtml(text)}` : ''}` : '—';
+    };
+    const right = given && given === correct;
+    return `
+      <div class="review-item ${right ? 'right' : 'wrong'}">
+        <div class="review-q"><strong>${i + 1}.</strong> ${this.escapeHtml(q.text || '')}</div>
+        <div class="review-a">Your answer: ${opt(given)} ${right ? '✓' : '✗'}</div>
+        ${right ? '' : `<div class="review-a">Correct: ${opt(correct)}</div>`}
+        ${q.explanation ? `<div class="review-exp">${this.escapeHtml(q.explanation)}</div>` : ''}
+        ${q.answerSource === 'ai' ? '<div class="review-exp">The answer to this question was chosen by AI, not taken from an answer key.</div>' : ''}
+        ${q.id !== undefined ? `<button class="btn small" data-action="reportQuestion" data-param="${q.id}">Report wrong answer</button>` : ''}
+      </div>`;
   },
 
   startSessionTimer() {

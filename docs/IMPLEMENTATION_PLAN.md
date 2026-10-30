@@ -117,17 +117,52 @@ Checked every page at 390×844 (phone), 844×390 (phone landscape), 820×1180 an
 
 Covered by `tests/e2e/responsive.spec.js`: no sideways scrolling on any page, the right navigation per size, and a full-screen session at four sizes.
 
+## Phase 5: Done (features, AI accuracy, quality, code health)
+
+### AI accuracy
+| Problem | Fix |
+|---|---|
+| **The paper's text was never sent to the AI.** The prompt asked for questions "from the text" but didn't include it, so every analysis made questions up. | The prompt now contains the paper (up to ~12,000 characters, shared between files) and says to extract only questions that appear in it |
+| No way to tell a real question from an invented one | The AI must quote the paper for each question. A question whose quote and wording can't be found in the extracted text gets "Not found in your paper (may be AI-invented)" and starts unticked |
+| No way to tell where an answer came from | Each answer is labelled "from the paper's key" or "chosen by AI" (in review, the Question Bank and test results) |
+| Answers were only format-checked | **Double-check answers with AI**: the AI answers every question again without seeing the first answers; disagreements are flagged, unticked and shown with the reason. It doesn't use a free analysis |
+| Wrong answers stayed in the bank | **Report wrong answer** on every question in the test results, and on flashcards. Reported questions leave tests and reviews until fixed in the Question Bank |
+
+The second check catches many mistakes but not all: two AI answers can agree and both be wrong. Answers marked "chosen by AI" are worth checking against a textbook.
+
+### Missing features
+- **Question Bank** (Practice): search, filter (reported, disputed, AI answers), edit (question, options, answer, explanation, topic) and delete. Editing updates the question's flashcard; deleting removes it too, on every synced device.
+- **Delete** uploaded papers (Upload → Your papers) and your own library books.
+- **Scanned PDFs**: pages without a text layer are rendered and read with OCR (up to 10 pages per PDF).
+- **Offline OCR**: Tesseract's worker, engine and English data are served by the app (`vite.config.js`), so photo/scan OCR works offline and in the Android app. The files (~11 MB) are cached on first use, not on install.
+- **Sync and backups now include library books** (files in Cloud Storage under `users/{uid}/library/`, 50 MB per file) **and Study Assistant chats**. Backup files are version 2; version 1 files still import.
+
+### Quality
+- **Colour contrast** is measured with axe-core on 12 screens in both themes (`tests/e2e/contrast.spec.js`). It found white text on orange buttons (2.8:1), orange/amber/red text on the light theme (1.9–3.4:1), grey text just under the limit (4.2:1), heatmap labels (~2:1) and toasts (2.5–3.8:1). All now meet WCAG AA (4.5:1): dark text on orange in the dark theme, a deeper orange (#c2410c) with white text in the light theme, darker status colours in the light theme.
+- **Light theme** checked on phone and laptop.
+- **Safari / iPhone / iPad**: the build targets Safari and iOS 16.4+ (Vite's default). The code was checked for newer APIs (none used), pop-up blocking after `await` (handled) and input zoom (16px inputs). Real Safari could not be run here (only Chromium is available), so test on a real iPhone/iPad before release.
+
+### Code health
+- **ESLint** (`npm run lint`), now part of CI. It found the paper-text bug above.
+- **Firebase modular SDK** (`src/firebase.js`) instead of compat: startup JavaScript went from 84.7 KB to 73.8 KB gzipped, even with the new features.
+- **Clock-safe sync**: each sync measures the device's offset from Firebase's server clock, and cloud timestamps are stored in server time, so a device with a wrong clock no longer wins conflicts it shouldn't.
+
+### Tests
+84 unit tests (sync between simulated devices with wrong clocks, library and chat sync, missing cloud files, AI prompt and second check), 7 rules tests (new: personal library files), 54 end-to-end tests (new: Question Bank, reporting, deletions, contrast in both themes), plus browser checks of offline OCR on a photo and a scanned PDF with all outside network blocked.
+
 ## Steps only you can do
 
 These need your Firebase or Cloudflare accounts:
 
 1. **Make yourself admin:** `node scripts/set-admin.mjs you@example.com` with a service-account key (see README).
-2. **Deploy the new rules:** `npm run deploy:rules` (tested by `npm run test:rules` in the emulators). Until you do, the old rules (any signed-in user can upload) stay live, and per-record sync is refused by the old Firestore rules.
+2. **Deploy the new rules:** `npm run deploy:rules` (tested by `npm run test:rules` in the emulators). Until you do, the old rules (any signed-in user can upload) stay live, and per-record sync is refused by the old Firestore rules. Library-book sync also needs the new Storage rule (`users/{uid}/library/`).
 3. **Register a Web app** in the Firebase console and put its `appId` in `.env` as `VITE_FIREBASE_APP_ID`.
 4. **Redeploy the Worker** (`cd worker && wrangler deploy`). Optionally create the `USAGE` KV namespace for the daily quota (see `worker/README.md`).
 
 ## Known limits
 
 - Reset is per device: a signed-in user's cloud copy is kept and comes back on the next sync (Import is the way to replace data everywhere).
-- Sync compares device clocks. A device whose clock is badly wrong can win or lose conflicts it shouldn't. The incremental pull re-checks a 5-minute overlap.
-- Firebase still uses the compat SDK. Moving to the modular SDK would shrink the bundle further.
+- Library books over 50 MB stay on the device they were added on.
+- OCR reads English only, and at most 10 scanned pages per PDF.
+- The answer check is a second AI opinion, not proof. Answers from a paper's own key are the most reliable.
+- Not tested on real Safari, iPhone or iPad hardware.

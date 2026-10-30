@@ -6,8 +6,6 @@
  */
 
 import { ALLOWED_EXAMS, EXAM_ID_MIGRATION, CURATED_RESOURCES } from './config.js';
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/auth';
 import { authMixin } from './auth.js';
 import { dbMixin } from './db.js';
 import { aiMixin } from './ai.js';
@@ -19,6 +17,7 @@ import { uploadMixin } from './views/upload.js';
 import { practiceMixin } from './views/practice.js';
 import { progressMixin } from './views/progress.js';
 import { syncMixin } from './sync.js';
+import { bankMixin } from './views/bank.js';
 import { h, render } from 'preact';
 import Toast from './components/Toast.jsx';
 import './index.css';
@@ -31,7 +30,7 @@ import { createIcons,
   Sparkles, Smile, Zap, Award, Frown,
   FileText, Layers, BarChart3, Timer,
   Plus, HelpCircle, Cloud, ExternalLink, File, X,
-  Send, ChevronDown
+  Send, ChevronDown, ListChecks, Trash2
 } from 'lucide';
 
 const usedIcons = {
@@ -40,7 +39,7 @@ const usedIcons = {
   Sparkles, Smile, Zap, Award, Frown,
   FileText, Layers, BarChart3, Timer,
   Plus, HelpCircle, Cloud, ExternalLink, File, X,
-  Send, ChevronDown
+  Send, ChevronDown, ListChecks, Trash2
 };
 
 // Register PWA Service Worker
@@ -90,7 +89,7 @@ const app = {
     // Guests are local-only: don't make them wait for Firebase to answer.
     if (localStorage.getItem('woni_guest_mode')) this.enterApp();
 
-    firebase.auth().onAuthStateChanged(async (user) => {
+    this.watchAuth(async (user) => {
       this.state.user = user;
       await this.refreshAdminStatus(user);
       this.updateAuthUI();
@@ -385,7 +384,7 @@ const app = {
 
 // --- Merge all domain modules ---
 Object.assign(app, authMixin, dbMixin, aiMixin, routerMixin, particleMixin,
-  dashboardMixin, libraryMixin, uploadMixin, practiceMixin, progressMixin, syncMixin);
+  dashboardMixin, libraryMixin, uploadMixin, practiceMixin, progressMixin, syncMixin, bankMixin);
 
 // Expose for legacy compatibility (inline handlers in index.html that haven't been migrated yet)
 window.app = app;

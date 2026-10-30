@@ -54,7 +54,7 @@ export const progressMixin = {
       if (topics.length > 0) {
         heatmap.innerHTML = topics.map(t => {
           const mastery = t.mastery || 0;
-          return `<div class="heatmap-topic" style="background: rgba(16, 185, 129, ${mastery / 100 + 0.1})"><span class="ht-name">${this.escapeHtml(t.name)}</span><span class="ht-freq">${mastery}% Mastery</span><span class="ht-subtext">${t.frequency || 0}% Importance</span></div>`;
+          return `<div class="heatmap-topic" style="background: rgba(16, 185, 129, ${(0.06 + (mastery / 100) * 0.3).toFixed(2)})"><span class="ht-name">${this.escapeHtml(t.name)}</span><span class="ht-freq">${mastery}% Mastery</span><span class="ht-subtext">${t.frequency || 0}% Importance</span></div>`;
         }).join('');
       } else {
         heatmap.innerHTML = '<p class="muted">No topics analyzed yet.</p>';

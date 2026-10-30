@@ -206,8 +206,14 @@
             <div id="analysis-review-summary" class="analysis-review-summary"></div>
             <div id="analysis-review-list" class="analysis-review-list"></div>
             <div class="analysis-review-actions">
+              <button id="recheck-answers-btn" class="btn" data-action="recheckPendingAnswers" title="The AI answers every question again without seeing the first answers; disagreements are flagged">Double-check answers with AI</button>
               <button id="save-reviewed-analysis-btn" class="btn accent">Save Approved Items</button>
             </div>
+          </div>
+
+          <div id="paper-list-wrap" class="paper-list-wrap hidden">
+            <h3 class="paper-list-title">Your papers</h3>
+            <div id="paper-list" class="file-list"></div>
           </div>
 
           <div id="analysis-assistant" class="analysis-assistant hidden">
@@ -250,6 +256,13 @@
             <div class="pc-info">
               <h4>Topic Mastery</h4>
               <p>Practice specific topics you're weak in.</p>
+            </div>
+          </div>
+          <div class="practice-card" data-action="showQuestionBank">
+            <div class="pc-icon"><i data-lucide="list-checks"></i></div>
+            <div class="pc-info">
+              <h4>Question Bank</h4>
+              <p>Search, fix or delete saved questions and reported answers.</p>
             </div>
           </div>
           <div class="practice-card" data-action="showFocusTimer">
@@ -480,6 +493,58 @@
     <!-- Focus Timer View (Overlay) -->
     <div id="focus-timer-overlay" class="overlay hidden">
       <div id="focus-timer-mount"></div>
+    </div>
+
+    <!-- Question Bank -->
+    <div id="question-bank-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="bank-title">
+      <div class="overlay-content bank-panel">
+        <div class="bank-head">
+          <h3 id="bank-title">Question Bank</h3>
+          <button class="btn small" data-action="hideQuestionBank" aria-label="Close question bank">✕</button>
+        </div>
+        <div class="bank-controls">
+          <input type="search" id="bank-search" placeholder="Search questions, options, topics" aria-label="Search questions">
+          <select id="bank-filter" aria-label="Filter questions">
+            <option value="all">All</option>
+            <option value="reported">Reported</option>
+            <option value="disputed">Disputed by second check</option>
+            <option value="ai">Answer chosen by AI</option>
+          </select>
+        </div>
+        <p id="bank-summary" class="muted bank-summary"></p>
+        <div id="bank-list" class="bank-list"></div>
+      </div>
+    </div>
+
+    <div id="question-edit-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="qe-title">
+      <div class="overlay-content bank-panel">
+        <h3 id="qe-title">Edit question</h3>
+        <p id="qe-note" class="muted hidden"></p>
+        <div class="form-group">
+          <label for="qe-text">Question</label>
+          <textarea id="qe-text" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="qe-options">Options (one per line, in order A, B, C…)</label>
+          <textarea id="qe-options" rows="4"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="qe-answer">Correct answer (letter)</label>
+          <input id="qe-answer" maxlength="1" autocapitalize="characters">
+        </div>
+        <div class="form-group">
+          <label for="qe-explanation">Explanation</label>
+          <textarea id="qe-explanation" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="qe-topic">Topic</label>
+          <input id="qe-topic">
+        </div>
+        <div class="form-actions">
+          <button class="btn" data-action="cancelQuestionEdit">Cancel</button>
+          <button class="btn accent" data-action="saveQuestionEdit">Save</button>
+        </div>
+      </div>
     </div>
 
     <!-- Active Mock Test / Flashcards View (Overlay) -->

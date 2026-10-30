@@ -48,7 +48,7 @@ export const dbMixin = {
               }
               // Chat history store (v4)
               if (!db.objectStoreNames.contains('chat_history')) {
-                const cStore = db.createObjectStore('chat_history', { keyPath: 'exam' });
+                db.createObjectStore('chat_history', { keyPath: 'exam' });
               }
             },
           });
@@ -67,7 +67,7 @@ export const dbMixin = {
   _stampForSync(storeName, data) {
     if (!SYNC_STORES[storeName] || !data || typeof data !== 'object') return data;
     if (!data.syncId) data.syncId = makeSyncId(storeName, data);
-    data.updatedAt = Date.now();
+    data.updatedAt = this.now ? this.now() : Date.now();
     return data;
   },
 
@@ -83,8 +83,11 @@ export const dbMixin = {
   async dbGetAll(storeName) {
     return this.state.db.getAll(storeName);
   },
+  /** Delete a record; synced stores also remember the deletion so other devices drop it too. */
   async dbDelete(storeName, key) {
-    return this.state.db.delete(storeName, key);
+    const record = SYNC_STORES[storeName] ? await this.state.db.get(storeName, key) : null;
+    await this.state.db.delete(storeName, key);
+    if (record?.syncId && this.recordDeletions) this.recordDeletions(storeName, [record.syncId]);
   },
   async dbGetFromIndex(storeName, indexName, value) {
     return this.state.db.getAllFromIndex(storeName, indexName, value);

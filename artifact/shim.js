@@ -96,8 +96,8 @@ style.textContent = `
     border: 1px solid var(--border); background: var(--surface); color: var(--text); }
   .wa-btn:hover { border-color: var(--border-hover); }
   .wa-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .wa-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .wa-btn.danger { background: var(--red); border-color: var(--red); color: #fff; }
+  .wa-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .wa-btn.danger { background: transparent; border-color: var(--red); color: var(--red); }
   .wa-dialog-back { position: fixed; inset: 0; z-index: 10001; display: grid; place-items: center;
     padding: 16px; background: rgba(0,0,0,.55); }
   .wa-dialog { width: min(100%, 380px); padding: 20px; border-radius: 14px; background: var(--surface);
