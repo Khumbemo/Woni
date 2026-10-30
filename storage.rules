@@ -9,5 +9,12 @@ service firebase.storage {
         && request.resource.size < 50 * 1024 * 1024  // 50 MB max
         && request.resource.contentType.matches('application/pdf');
     }
+
+    // Each user's own library books, synced between their devices.
+    match /users/{userId}/library/{fileId} {
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId
+        && request.resource.size < 50 * 1024 * 1024;  // 50 MB max
+    }
   }
 }

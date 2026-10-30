@@ -96,8 +96,8 @@ style.textContent = `
     border: 1px solid var(--border); background: var(--surface); color: var(--text); }
   .wa-btn:hover { border-color: var(--border-hover); }
   .wa-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .wa-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .wa-btn.danger { background: var(--red); border-color: var(--red); color: #fff; }
+  .wa-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .wa-btn.danger { background: transparent; border-color: var(--red); color: var(--red); }
   .wa-dialog-back { position: fixed; inset: 0; z-index: 10001; display: grid; place-items: center;
     padding: 16px; background: rgba(0,0,0,.55); }
   .wa-dialog { width: min(100%, 380px); padding: 20px; border-radius: 14px; background: var(--surface);
@@ -195,7 +195,7 @@ banner.setAttribute('role', 'region');
 banner.setAttribute('aria-label', 'Preview notes');
 banner.innerHTML = `
   <p><strong>Preview build.</strong> AI features run on Claude (it asks your permission first).
-  Sign-in, cloud sync and image OCR need the network, so they are off here. Data stays in this browser.</p>
+  Sign-in, cloud sync and OCR (photos, scanned PDFs) are off here. Data stays in this browser.</p>
   <button class="wa-btn primary" id="wa-sample-btn">Add sample questions</button>
   <button class="wa-btn" id="wa-hide-btn" aria-label="Hide preview notes">Hide</button>`;
 document.body.appendChild(banner);

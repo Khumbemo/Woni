@@ -78,3 +78,18 @@ describe('Storage: library PDFs', () => {
     await assertSucceeds(ref(env.unauthenticatedContext()).getMetadata());
   });
 });
+
+describe('Storage: personal library files', () => {
+  const file = new Uint8Array([1, 2, 3]);
+  const ref = ctx => ctx.storage().ref('users/alice/library/library:abc');
+
+  it('only the owner can upload, download and delete', async () => {
+    await assertSucceeds(ref(env.authenticatedContext('alice')).put(file, { contentType: 'text/plain' }));
+    await assertSucceeds(ref(env.authenticatedContext('alice')).getMetadata());
+    await assertFails(ref(env.authenticatedContext('bob')).getMetadata());
+    await assertFails(ref(env.authenticatedContext('bob')).put(file));
+    await assertFails(ref(env.unauthenticatedContext()).getMetadata());
+    await assertFails(ref(env.authenticatedContext('bob')).delete());
+    await assertSucceeds(ref(env.authenticatedContext('alice')).delete());
+  });
+});

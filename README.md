@@ -7,14 +7,16 @@ Woni is a specialized exam preparation app designed for students targeting **CSI
 - **Multi-Exam Support**: Choose from CSIR NET, GATE Life Science, SLET, or NPSC CCE.
 - **Phone, Tablet & Desktop**: Bottom tab bar on phones and tablets, a sidebar on laptops and desktops (1024px+), full-screen tests on every size, and keyboard shortcuts (A–D, Enter, Space, 1–4, Esc) on computers. Installable as an app from the browser.
 - **Offline-First Storage**: All your papers, questions, and progress are stored locally using IndexedDB.
-- **Cloud Sync & Authentication**: Securely back up your data to Firebase and sync across devices.
+- **Cloud Sync & Authentication**: Back up questions, flashcards, progress, library books and Study Assistant chats to Firebase and sync across devices.
 - **Guest Mode**: Use the app entirely offline without creating an account.
-- **AI-Powered Analysis**: Upload PDFs, images, or text files to extract questions and identify important topics via Groq API.
+- **AI-Powered Analysis**: Upload PDFs (including scanned ones), photos, or text files to extract the questions in them and identify important topics via Groq API. OCR works offline.
+- **Answer Checks**: Each question shows whether its answer came from the paper's key or the AI, questions not found in the paper are flagged, and an optional second AI pass re-answers every question and flags disagreements.
+- **Question Bank**: Search, edit, report and delete questions; reported questions leave tests until fixed.
 - **Mock Tests**: Generate custom tests based on specific exams and topics.
 - **Spaced Repetition Flashcards**: Auto-generated flashcards with an SM-2 algorithm to optimize retention.
 - **Progress Tracking**: Visualized performance trends and topic mastery heatmaps.
 - **PDF Export**: Export your mock test results as study-friendly PDFs.
-- **Dark/Light Mode**: Customizable UI themes.
+- **Dark/Light Mode**: Both themes meet WCAG AA colour contrast (checked automatically).
 
 ## 🚀 Getting Started
 
@@ -116,8 +118,8 @@ Woni is designed to be mobile-friendly and can be bundled using Capacitor:
 
 ## ⚙️ How it Works
 
-1. **Extraction**: `pdf.js` and `Tesseract.js` extract raw text from your uploads.
-2. **Parsing**: The text is sent to the Groq API with a specialized prompt to identify structured questions and topics.
+1. **Extraction**: `pdf.js` extracts text from PDFs; `Tesseract.js` reads photos and scanned pages (its files ship with the app).
+2. **Parsing**: The text is sent to the Groq API, which returns the questions it contains, each with a quote from the paper and where its answer came from. Woni checks each quote against the paper before you review and save.
 3. **Storage**: Extracted data is saved locally to IndexedDB.
 4. **Practice**: The app selects questions from your local bank for tests or schedules flashcard reviews using spaced repetition.
 5. **Insights**: Your performance in tests updates your topic mastery, which is then visualized on the dashboard.

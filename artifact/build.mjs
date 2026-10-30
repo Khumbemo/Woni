@@ -23,15 +23,19 @@ fs.copyFileSync(path.join(root, 'artifact', 'shim.js'), path.join(outDir, 'shim.
 for (const f of fs.readdirSync(outDir)) {
   if (/^(sw\.js|workbox-.*\.js|manifest\.(json|webmanifest)|registerSW\.js)$/.test(f)) fs.rmSync(path.join(outDir, f));
 }
+// The Artifact host doesn't serve Tesseract's .gz language data, so OCR is off in the preview.
+fs.rmSync(path.join(outDir, 'tesseract'), { recursive: true, force: true });
 
 // The Artifact host rejects files containing raw control characters. In the
 // bundles they only occur inside string/regex literals (pdf.js, jsPDF and
 // Firebase embed binary data), where a \xNN escape means the same thing.
-for (const dir of [outDir, path.join(outDir, 'assets')]) {
+for (const dir of [outDir, path.join(outDir, 'assets'), path.join(outDir, 'tesseract'), path.join(outDir, 'tesseract', 'core')]) {
+  if (!fs.existsSync(dir)) continue;
   for (const f of fs.readdirSync(dir)) {
     if (!/\.m?js$/.test(f)) continue;
     const file = path.join(dir, f);
     const src = fs.readFileSync(file, 'utf8');
+    // eslint-disable-next-line no-control-regex -- matching control characters is the point
     const out = src.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g,
       ch => '\\x' + ch.charCodeAt(0).toString(16).padStart(2, '0'));
     if (out !== src) fs.writeFileSync(file, out);

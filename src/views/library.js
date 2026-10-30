@@ -2,7 +2,6 @@
  * Woni — Library View Module
  * Handles curated resources, cloud books, local book uploads, and admin panel.
  */
-import firebase from 'firebase/compat/app';
 
 export const libraryMixin = {
   updateLibraryView() {
@@ -80,9 +79,14 @@ export const libraryMixin = {
             </div>
           `).join('')}
           ${(groupedUser[sub] || []).map(b => `
-            <div class="book-card" data-action="openLocalBook" data-param="${b.id}">
-              <div class="book-icon"><i data-lucide="file-text"></i></div>
-              <span class="book-title">${this.escapeHtml(b.title)}</span>
+            <div class="book-wrap">
+              <div class="book-card" data-action="openLocalBook" data-param="${b.id}">
+                <div class="book-icon"><i data-lucide="file-text"></i></div>
+                <span class="book-title">${this.escapeHtml(b.title)}</span>
+              </div>
+              <button class="book-del" data-action="deleteLocalBook" data-param="${b.id}" aria-label="Delete ${this.escapeHtml(b.title)}" title="Delete">
+                <i data-lucide="trash-2"></i>
+              </button>
             </div>
           `).join('')}
         </div>
@@ -102,9 +106,9 @@ export const libraryMixin = {
     if (Date.now() - (this._cloudFetchedAt[examId] || 0) < 60000) return;
     this._cloudFetchedAt[examId] = Date.now();
     try {
-      const db = await this.getDb();
+      const { db, collection, query, where, getDocs } = await this.getDb();
       const snapshot = await Promise.race([
-        db.collection('library_books').where('exam', '==', examId).get(),
+        getDocs(query(collection(db, 'library_books'), where('exam', '==', examId))),
         new Promise((_, reject) => setTimeout(() => reject(new Error('Cloud library timed out')), 8000)),
       ]);
       const books = snapshot.docs.map(doc => doc.data());
@@ -176,6 +180,15 @@ export const libraryMixin = {
     this.showToast('Book added to your shelf!', 'success');
   },
 
+  async deleteLocalBook(id) {
+    const book = await this.dbGet('library', parseInt(id, 10));
+    if (!book) return;
+    if (!(await this.confirmAction(`Delete "${book.name}" from your shelf? This also removes it from your other synced devices.`))) return;
+    await this.dbDelete('library', book.id);
+    this.showToast('Book deleted.', 'success');
+    this.renderLibraryContent();
+  },
+
   async openLocalBook(id) {
     // Open the tab while still inside the click: pop-up blockers (Safari in
     // particular) refuse window.open after an await.
@@ -234,15 +247,15 @@ export const libraryMixin = {
     if (btn) { btn.textContent = 'Uploading...'; btn.disabled = true; }
 
     try {
-      const [db, storage] = await Promise.all([this.getDb(), this.getStorage()]);
-      const storageRef = storage.ref(`library_books/${exam}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`);
-      const snapshot = await storageRef.put(file, { contentType: 'application/pdf' });
-      const downloadURL = await snapshot.ref.getDownloadURL();
+      const [fs, st] = await Promise.all([this.getDb(), this.getStorage()]);
+      const fileRef = st.ref(st.storage, `library_books/${exam}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`);
+      await st.uploadBytes(fileRef, file, { contentType: 'application/pdf' });
+      const downloadURL = await st.getDownloadURL(fileRef);
 
-      await db.collection('library_books').add({
+      await fs.addDoc(fs.collection(fs.db, 'library_books'), {
         title, subject, exam, url: downloadURL,
         addedBy: this.state.user.uid,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        createdAt: fs.serverTimestamp(),
       });
 
       this.showToast('Book uploaded successfully to cloud!', 'success');
