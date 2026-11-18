@@ -1,6 +1,6 @@
 // Legacy build: same API, transpiled for older Android WebViews / Safari.
 import pdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
-import { parseJSON } from './utils.js';
+import { parseJSON, splitIntoChunks, findAnswerKey, salvageArray, mergeAnalyses, textAfterQuestion } from './utils.js';
 
 // pdf.js and Tesseract are large; load them only when a file is analyzed.
 let pdfjsPromise;
@@ -12,8 +12,8 @@ function loadPdfjs() {
   return pdfjsPromise;
 }
 
-const MAX_PDF_PAGES = 20;
-const MAX_OCR_PAGES = 10;       // OCR takes a few seconds a page
+const MAX_PDF_PAGES = 60;
+const MAX_OCR_PAGES = 30;       // OCR takes a few seconds a page
 const SCANNED_PAGE_CHARS = 20;  // fewer real characters than this: treat the page as a scan
 
 /** Draw a PDF page at a resolution good enough for OCR (about 2× screen size, capped). */
@@ -33,7 +33,14 @@ async function renderPageToCanvas(page) {
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
-const PAPER_BUDGET = 12000;  // characters of paper text sent for analysis
+// Long papers are analysed in parts (see performAIAnalysis).
+const CHUNK_CHARS = 6000;          // ≈15-20 questions; their JSON fits in one reply
+const ANALYSIS_MAX_TOKENS = 8000;  // reply length asked for (the proxy may cap it lower)
+const MAX_PARTS = 16;              // ≈96k characters: a few full papers per analysis
+const MAX_CALLS = 30;              // including follow-ups after a cut-off reply
+const MAX_SPLIT_DEPTH = 2;
+const MIN_SPLIT_CHARS = 1500;
+const RATE_LIMIT_WAITS = [20, 40, 60]; // seconds
 const RECHECK_BATCH = 10;    // questions per second-opinion request
 
 export const aiMixin = {
@@ -112,62 +119,78 @@ export const aiMixin = {
   },
 
   /**
-   * Smart text sampling — instead of a naive first-N-chars slice,
-   * take chunks from beginning, middle, and end of each source
-   * to capture better context from large PDFs.
-   */
-  _smartSample(text, budget = 4000) {
-    if (text.length <= budget) return text;
-    const third = Math.floor(budget / 3);
-    const start = text.slice(0, third);
-    const midPoint = Math.floor(text.length / 2);
-    const middle = text.slice(midPoint - Math.floor(third / 2), midPoint + Math.floor(third / 2));
-    const end = text.slice(-third);
-    return `${start}\n[...middle section...]\n${middle}\n[...end section...]\n${end}`;
-  },
-
-  /**
    * Performs AI analysis on extracted texts.
    * IMPORTANT: This method only RETURNS parsed data — it does NOT save to IndexedDB.
    * Saving happens in saveReviewedAnalysis() after user review.
+   *
+   * Papers are analysed in parts of about CHUNK_CHARS, cut between questions,
+   * so long papers are covered in full and each reply stays short enough to
+   * finish. A reply that was cut off anyway keeps its complete questions, and
+   * its part is split in two and asked again.
+   * `onProgress(message, fraction)` reports progress.
    */
-  async performAIAnalysis(examId, extractedTexts) {
-    // ~12k characters of paper (≈3k tokens) leaves room for the answer within
-    // free-tier Groq limits and the proxy's prompt cap.
-    const budget = Math.max(2000, Math.floor(PAPER_BUDGET / Math.max(1, extractedTexts.length)));
-    const combinedText = extractedTexts.map(t => `SOURCE: ${t.name}\n${this._smartSample(t.text, budget)}`).join('\n---\n');
-    const syllabusHint = this.SYLLABUS_HINTS[examId] || '';
-    const prompt = `You are an AI specialized in exam preparation for ${examId}.
-${syllabusHint ? `Use these official syllabus units to categorize topics: ${syllabusHint}` : ''}
-Below is text extracted from the student's exam paper(s), between <paper> tags.
-Extract the multiple-choice questions that appear IN THIS TEXT. Do not invent new questions.
-If the text contains an answer key or worked solutions, use them for the answers.
+  async performAIAnalysis(examId, extractedTexts, onProgress = () => {}) {
+    let parts = [];
+    for (const file of extractedTexts) {
+      const key = findAnswerKey(file.text);
+      for (const text of splitIntoChunks(file.text, CHUNK_CHARS)) parts.push({ name: file.name, text, key, depth: 0 });
+    }
+    const skippedParts = Math.max(0, parts.length - MAX_PARTS);
+    parts = parts.slice(0, MAX_PARTS);
 
-For each question, include:
-- "text": The question, as written in the paper.
-- "options": An array of its options (usually 4), as written.
-- "answer": The correct option letter (A, B, C or D).
-- "answerSource": "paper" if the answer comes from an answer key or solution in the text, otherwise "ai".
-- "source": A short exact quote (8-20 words) copied from the paper where the question appears.
-- "topic": The specific topic name (align with official syllabus units when possible).
-- "difficulty": easy, medium, or hard.
-- "explanation": A brief explanation of why the answer is correct.
+    const results = [];
+    let total = parts.length, done = 0, calls = 0, failedParts = 0, firstError = null;
+    while (parts.length && calls < MAX_CALLS) {
+      const part = parts.shift();
+      onProgress(total > 1 ? `AI is analyzing part ${done + 1} of ${total}...` : 'AI is analyzing questions...', done / total);
+      let response;
+      try {
+        calls++;
+        response = await this._withRateLimitRetry(() => this.groqCall(this._analysisPrompt(examId, part), { maxTokens: ANALYSIS_MAX_TOKENS }), onProgress);
+      } catch (e) {
+        // Out of quota or no connection: later parts would fail the same way.
+        firstError = e;
+        failedParts++;
+        break;
+      }
+      const parsed = this.parseJSON(response);
+      if (Array.isArray(parsed.questions)) {
+        results.push(parsed);
+        done++;
+        continue;
+      }
+      // Not valid JSON: usually the reply hit its length limit. Keep its
+      // complete questions and ask again for the text after the last one.
+      const salvaged = { questions: salvageArray(response, 'questions'), topics: salvageArray(response, 'topics') };
+      const last = salvaged.questions.filter(q => q && typeof q.text === 'string').at(-1);
+      const rest = last ? textAfterQuestion(part.text, last.text) : null;
+      if (rest !== null && rest.length < part.text.length) {
+        results.push(salvaged);
+        done++;
+        if (rest) {
+          parts.unshift({ ...part, text: rest });
+          total++;
+        }
+        continue;
+      }
+      // Nothing usable to continue from: split the part in two instead.
+      const halves = part.depth < MAX_SPLIT_DEPTH && part.text.length >= MIN_SPLIT_CHARS
+        ? splitIntoChunks(part.text, Math.ceil(part.text.length / 2) + 200) : [];
+      if (halves.length > 1) {
+        parts.unshift(...halves.map(text => ({ ...part, text, depth: part.depth + 1 })));
+        total += halves.length - 1;
+      } else {
+        results.push(salvaged);
+        done++;
+      }
+    }
+    failedParts += parts.length; // left over after MAX_CALLS
+    if (results.length === 0 && firstError) throw firstError;
 
-For each topic covered by the paper, include:
-- "name": The topic name (use official syllabus unit names when applicable).
-- "frequency": Estimated importance (0-100).
-- "priority": high, med, or low.
-
-Return ONLY a JSON object: { "questions": [...], "topics": [...] }
-
-<paper>
-${combinedText}
-</paper>`;
-
-    const response = await this.groqCall(prompt);
-    const result = this.parseJSON(response);
-    const questions = Array.isArray(result.questions) ? result.questions.filter(q => q && typeof q === 'object') : [];
-    const topics = Array.isArray(result.topics) ? result.topics.filter(t => t && typeof t === 'object' && t.name) : [];
+    const { questions, topics } = mergeAnalyses(results.map(r => ({
+      questions: Array.isArray(r.questions) ? r.questions.filter(q => q && typeof q === 'object') : [],
+      topics: Array.isArray(r.topics) ? r.topics.filter(t => t && typeof t === 'object' && t.name) : [],
+    })));
 
     // Tag each item with the exam ID (but do NOT save to DB yet)
     questions.forEach(q => {
@@ -180,7 +203,62 @@ ${combinedText}
       t.exam = examId;
     });
 
-    return { questions, topics };
+    return { questions, topics, partsTotal: total + skippedParts, failedParts, skippedParts };
+  },
+
+  _analysisPrompt(examId, part) {
+    const syllabusHint = this.SYLLABUS_HINTS[examId] || '';
+    // The answer key usually sits at the end of the paper; give it to every part.
+    const key = part.key && !part.text.includes(part.key.slice(0, 200))
+      ? `\nThe paper's answer key (from elsewhere in the paper; match answers by question number):\n<answer-key>\n${part.key}\n</answer-key>\n`
+      : '';
+    return `You are an AI specialized in exam preparation for ${examId}.
+${syllabusHint ? `Use these official syllabus units to categorize topics: ${syllabusHint}` : ''}
+Below is text extracted from part of the student's exam paper ${part.name ? `"${part.name}" ` : ''}between <paper> tags.
+Extract EVERY multiple-choice question that appears IN THIS TEXT, in order. Do not invent new questions.
+Skip a question only if it is cut off at the start or end of this part.
+If the text contains an answer key or worked solutions, use them for the answers.
+
+For each question, include:
+- "text": The question, as written in the paper.
+- "options": An array of its options (usually 4), as written.
+- "answer": The correct option letter (A, B, C or D).
+- "answerSource": "paper" if the answer comes from an answer key or solution in the paper, otherwise "ai".
+- "source": A short exact quote (8-20 words) copied from the paper where the question appears.
+- "topic": The specific topic name (align with official syllabus units when possible).
+- "difficulty": easy, medium, or hard.
+- "explanation": One or two sentences on why the answer is correct.
+
+For each topic covered by this part, include:
+- "name": The topic name (use official syllabus unit names when applicable).
+- "frequency": Estimated importance (0-100).
+- "priority": high, med, or low.
+
+Return ONLY a JSON object: { "questions": [...], "topics": [...] }
+${key}
+<paper>
+${part.text}
+</paper>`;
+  },
+
+  /** Run an AI call, waiting and retrying when the per-minute limit is hit (not the daily one). */
+  async _withRateLimitRetry(call, onProgress = () => {}) {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await call();
+      } catch (e) {
+        const msg = String(e?.message || '');
+        const perMinute = /too many|\(429\)|rate.?limit/i.test(msg) && !/daily/i.test(msg);
+        if (!perMinute || attempt >= RATE_LIMIT_WAITS.length) throw e;
+        const secs = RATE_LIMIT_WAITS[attempt];
+        onProgress(`AI rate limit reached. Waiting ${secs} seconds...`);
+        await this._sleep(secs * 1000);
+      }
+    }
+  },
+
+  _sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   },
 
   /**
@@ -199,7 +277,14 @@ Think about each one, then give the single best option letter.
 ${list}
 
 Return ONLY a JSON object: { "answers": [ { "n": <question number>, "answer": "<letter>", "reason": "<one sentence>" } ] }`;
-      const parsed = this.parseJSON(await this.groqCall(prompt));
+      let parsed;
+      try {
+        parsed = this.parseJSON(await this._withRateLimitRetry(() => this.groqCall(prompt)));
+      } catch (e) {
+        // Keep the answers already checked; the rest show as "not checked".
+        if (results.length === 0) throw e;
+        break;
+      }
       for (const a of Array.isArray(parsed.answers) ? parsed.answers : []) {
         const n = Number(a?.n);
         const letter = String(a?.answer || '').trim().toUpperCase().charAt(0);
@@ -285,8 +370,8 @@ Return ONLY a JSON object: { "answers": [ { "n": <question number>, "answer": "<
   },
 
   /** JSON-mode call used by paper analysis. */
-  groqCall(prompt) {
-    return this._chatCompletion({ messages: [{ role: 'user', content: prompt }], json: true });
+  groqCall(prompt, { maxTokens } = {}) {
+    return this._chatCompletion({ messages: [{ role: 'user', content: prompt }], json: true, maxTokens });
   },
 
   /** Plain-text call used by the analysis chat. */

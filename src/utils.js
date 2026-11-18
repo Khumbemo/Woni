@@ -247,3 +247,123 @@ export function foundInPaper(question, paperText) {
   if (key.length === 0) return false;
   return key.filter(w => vocab.has(w)).length / key.length >= 0.8;
 }
+
+// --- Long papers -------------------------------------------------------------
+
+// "12.", "Q12)", "Q. 12:", "Question 12." at the start of a line or after a space.
+const QUESTION_START = /(?:^|\s)(?:Q\.\s*|Q(?=\d)|Question\s*)?\d{1,3}\s*[.):]\s/gi;
+
+/**
+ * Split a paper into pieces of about `size` characters, cutting just before a
+ * question number where possible (else at a space), so no question is split.
+ */
+export function splitIntoChunks(text, size = 6000) {
+  const chunks = [];
+  let rest = String(text || '').trim();
+  while (rest.length > size) {
+    let cut = -1;
+    QUESTION_START.lastIndex = 0;
+    // Look a little past the limit: a question number that starts before it counts.
+    const lookahead = rest.slice(0, size + 20);
+    for (let m; (m = QUESTION_START.exec(lookahead));) {
+      if (m.index >= size * 0.5 && m.index <= size) cut = m.index;
+    }
+    const window = rest.slice(0, size);
+    if (cut <= 0) cut = window.lastIndexOf(' ') > size * 0.5 ? window.lastIndexOf(' ') : size;
+    chunks.push(rest.slice(0, cut).trim());
+    rest = rest.slice(cut).trim();
+  }
+  if (rest) chunks.push(rest);
+  return chunks;
+}
+
+/**
+ * The paper's answer key, if it has one: text from an "Answer key" heading in
+ * the second half of the paper, up to `max` characters. Sent with every part
+ * so questions far from the key still get its answers.
+ */
+export function findAnswerKey(text, max = 3000) {
+  const t = String(text || '');
+  const re = /\b(answer\s*key|key\s*to\s*answers|answer\s*sheet|answers\s*key)\b/gi;
+  let last = -1;
+  for (let m; (m = re.exec(t));) last = m.index;
+  if (last < 0 || last < t.length * 0.5) return '';
+  return t.slice(last, last + max).trim();
+}
+
+/**
+ * Complete objects from a JSON array that may have been cut off, e.g. an AI
+ * reply that hit its length limit: '{"questions":[{...},{...},{"te' -> 2 objects.
+ */
+export function salvageArray(raw, key) {
+  const s = String(raw || '');
+  const at = s.search(new RegExp(`"${key}"\\s*:\\s*\\[`));
+  if (at < 0) return [];
+  const out = [];
+  let i = s.indexOf('[', at) + 1;
+  let depth = 0, start = -1, inStr = false, esc = false;
+  for (; i < s.length; i++) {
+    const c = s[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === '{') { if (depth++ === 0) start = i; }
+    else if (c === '}') {
+      if (--depth === 0 && start >= 0) {
+        try { out.push(JSON.parse(s.slice(start, i + 1))); } catch { /* skip a malformed item */ }
+        start = -1;
+      }
+    } else if (c === ']' && depth === 0) break;
+  }
+  return out;
+}
+
+const normText = t => String(t || '').trim().replace(/\s+/g, ' ').toLowerCase();
+const PRIORITY_RANK = { high: 3, med: 2, medium: 2, low: 1 };
+
+/** Combine the results of analysing a paper in parts: no repeated questions, one entry per topic. */
+export function mergeAnalyses(parts) {
+  const questions = [];
+  const seen = new Set();
+  const topics = new Map();
+  for (const p of parts) {
+    for (const q of p.questions || []) {
+      const k = normText(q.text);
+      if (!k || seen.has(k)) continue;
+      seen.add(k);
+      questions.push(q);
+    }
+    for (const t of p.topics || []) {
+      const k = normText(t.name);
+      if (!k) continue;
+      const prev = topics.get(k);
+      if (!prev) { topics.set(k, { ...t }); continue; }
+      prev.frequency = Math.max(Number(prev.frequency) || 0, Number(t.frequency) || 0);
+      if ((PRIORITY_RANK[t.priority] || 0) > (PRIORITY_RANK[prev.priority] || 0)) prev.priority = t.priority;
+    }
+  }
+  return { questions, topics: [...topics.values()] };
+}
+
+/**
+ * The part of `text` after the question that starts with `questionText`: from
+ * the next question number on. '' if it was the last question; null if the
+ * question can't be found in the text.
+ */
+export function textAfterQuestion(text, questionText) {
+  const ws = words(questionText).slice(0, 8);
+  if (ws.length < 3) return null;
+  const esc = w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(ws.map(esc).join('[^\\p{L}\\p{N}]+'), 'iu');
+  const m = re.exec(text);
+  if (!m) return null;
+  const from = m.index + m[0].length;
+  const next = new RegExp(QUESTION_START.source, 'gi');
+  next.lastIndex = from;
+  const n = next.exec(text);
+  return n ? text.slice(n.index).trim() : '';
+}

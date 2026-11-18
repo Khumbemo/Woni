@@ -93,7 +93,7 @@ export const uploadMixin = {
         const file = this.state.uploadFiles[i];
         const step = 100 / this.state.uploadFiles.length;
         if (status) status.textContent = `Extracting text from ${file.name}...`;
-        if (fill) fill.style.width = `${i * step}%`;
+        if (fill) fill.style.width = `${(i * step) / 2}%`; // extraction is the first half
 
         let text = '';
         const ext = file.name.split('.').pop().toLowerCase();
@@ -108,9 +108,11 @@ export const uploadMixin = {
         throw new Error('No readable text found in these files, even with OCR. Try a clearer scan or photo.');
       }
 
-      if (fill) fill.style.width = '90%';
-      if (status) status.textContent = 'AI is analyzing questions...';
-      const analysis = await this.performAIAnalysis(examId, extractedTexts);
+      if (fill) fill.style.width = '50%';
+      const analysis = await this.performAIAnalysis(examId, extractedTexts, (message, fraction) => {
+        if (status) status.textContent = message;
+        if (fill && typeof fraction === 'number') fill.style.width = `${Math.round(50 + fraction * 45)}%`;
+      });
       // The AI sometimes returns questions but no topic list; derive one from the questions.
       if ((analysis.topics || []).length === 0 && (analysis.questions || []).length > 0) {
         analysis.topics = this.makeFallbackTopics(analysis.questions).map(t => ({ ...t, confidence: 0.6 }));
@@ -155,7 +157,12 @@ export const uploadMixin = {
         if (btn) btn.disabled = false;
         this.state.uploadFiles = [];
         this.renderFileList();
-        this.showToast('Analysis complete! Review flagged items, then save.', 'success');
+        const missed = (analysis.failedParts || 0) + (analysis.skippedParts || 0);
+        if (missed) {
+          this.showToast(`Analysis done, but ${missed} of ${analysis.partsTotal} parts of the paper were not analyzed${analysis.skippedParts ? ' (too long for one analysis: upload the rest separately)' : ' (the AI stopped responding)'}. Review the questions found, then save.`, 'info');
+        } else {
+          this.showToast(`Analysis complete${analysis.partsTotal > 1 ? ` (${analysis.partsTotal} parts)` : ''}! Review flagged items, then save.`, 'success');
+        }
       }, 1000);
     } catch (e) {
       console.error(e);

@@ -9,7 +9,7 @@ Woni is a specialized exam preparation app designed for students targeting **CSI
 - **Offline-First Storage**: All your papers, questions, and progress are stored locally using IndexedDB.
 - **Cloud Sync & Authentication**: Back up questions, flashcards, progress, library books and Study Assistant chats to Firebase and sync across devices.
 - **Guest Mode**: Use the app entirely offline without creating an account.
-- **AI-Powered Analysis**: Upload PDFs (including scanned ones), photos, or text files to extract the questions in them and identify important topics via Groq API. OCR works offline.
+- **AI-Powered Analysis**: Upload PDFs (including scanned ones), photos, or text files to extract the questions in them and identify important topics via Groq API. Whole papers are analysed in parts (100+ questions), with the answer key applied throughout. OCR works offline.
 - **Answer Checks**: Each question shows whether its answer came from the paper's key or the AI, questions not found in the paper are flagged, and an optional second AI pass re-answers every question and flags disagreements.
 - **Question Bank**: Search, edit, report and delete questions; reported questions leave tests until fixed.
 - **Mock Tests**: Generate custom tests based on specific exams and topics.
