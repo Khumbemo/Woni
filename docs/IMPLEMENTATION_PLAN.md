@@ -140,7 +140,7 @@ The second check catches many mistakes but not all: two AI answers can agree and
 ### Quality
 - **Colour contrast** is measured with axe-core on 12 screens in both themes (`tests/e2e/contrast.spec.js`). It found white text on orange buttons (2.8:1), orange/amber/red text on the light theme (1.9–3.4:1), grey text just under the limit (4.2:1), heatmap labels (~2:1) and toasts (2.5–3.8:1). All now meet WCAG AA (4.5:1): dark text on orange in the dark theme, a deeper orange (#c2410c) with white text in the light theme, darker status colours in the light theme.
 - **Light theme** checked on phone and laptop.
-- **Safari / iPhone / iPad**: the build targets Safari and iOS 16.4+ (Vite's default). The code was checked for newer APIs (none used), pop-up blocking after `await` (handled) and input zoom (16px inputs). Real Safari could not be run here (only Chromium is available), so test on a real iPhone/iPad before release.
+- **Safari / iPhone / iPad**: the build targets Safari and iOS 16.4+ (Vite's default). The code was checked for newer APIs (none used), pop-up blocking after `await` (handled) and input zoom (16px inputs). The whole end-to-end suite now also runs on Safari's engine (WebKit) as desktop Safari, iPhone 13 and iPad, locally and in CI: 162 of 162 passed. Offline OCR was also checked on WebKit.
 
 ### Code health
 - **ESLint** (`npm run lint`), now part of CI. It found the paper-text bug above.
@@ -155,9 +155,9 @@ The second check catches many mistakes but not all: two AI answers can agree and
 These need your Firebase or Cloudflare accounts:
 
 1. **Make yourself admin:** `node scripts/set-admin.mjs you@example.com` with a service-account key (see README).
-2. **Deploy the new rules:** `npm run deploy:rules` (tested by `npm run test:rules` in the emulators). Until you do, the old rules (any signed-in user can upload) stay live, and per-record sync is refused by the old Firestore rules. Library-book sync also needs the new Storage rule (`users/{uid}/library/`).
+2. **Deploy the new rules:** add the `FIREBASE_SERVICE_ACCOUNT` repository secret and the Deploy workflow does it on every rules change (or run `npm run deploy:rules` yourself; see README, "Automatic deploys"). Until you do, the old rules (any signed-in user can upload) stay live, and per-record sync is refused by the old Firestore rules. Library-book sync also needs the new Storage rule (`users/{uid}/library/`).
 3. **Register a Web app** in the Firebase console and put its `appId` in `.env` as `VITE_FIREBASE_APP_ID`.
-4. **Redeploy the Worker** (`cd worker && wrangler deploy`). Optionally create the `USAGE` KV namespace for the daily quota (see `worker/README.md`).
+4. **Redeploy the Worker:** add the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets and run the Deploy workflow (or `cd worker && wrangler deploy`). Optionally create the `USAGE` KV namespace for the daily quota (see `worker/README.md`).
 
 ## Known limits
 
@@ -165,4 +165,4 @@ These need your Firebase or Cloudflare accounts:
 - Library books over 50 MB stay on the device they were added on.
 - OCR reads English only, and at most 10 scanned pages per PDF.
 - The answer check is a second AI opinion, not proof. Answers from a paper's own key are the most reliable.
-- Not tested on real Safari, iPhone or iPad hardware.
+- Safari is tested with Playwright's WebKit build, which is the same engine but not Apple's own browser; a quick check on a real iPhone or iPad is still worthwhile.

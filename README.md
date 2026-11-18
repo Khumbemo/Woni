@@ -63,6 +63,18 @@ To enable Cloud Sync, you'll need a Firebase project:
 
 Cloud Sync stores one Firestore document per record (`users/{uid}/{store}/{id}`) and merges changes from several devices; the most recent edit wins.
 
+### 🚀 Automatic deploys
+
+`.github/workflows/deploy.yml` tests and deploys the Firebase rules, and deploys the AI proxy Worker, whenever they change on `main` (or from **Actions → Deploy → Run workflow**). Each part is skipped with a warning until its secrets are added under **Settings → Secrets and variables → Actions**:
+
+| Secret | What it is |
+|---|---|
+| `FIREBASE_SERVICE_ACCOUNT` | The full JSON of a service-account key (Firebase console → Project settings → Service accounts → Generate new private key). The account needs the **Firebase Rules Admin** role. |
+| `CLOUDFLARE_API_TOKEN` | A Cloudflare API token from the **Edit Cloudflare Workers** template |
+| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account id (Workers & Pages overview) |
+
+Paste them only into GitHub's secret settings, never into code or chat.
+
 ### 👑 Admin accounts (shared library uploads)
 
 Only accounts with the `admin` custom claim can upload books to the shared cloud library, and the Firestore and Storage rules enforce this. To make an account an admin:

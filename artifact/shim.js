@@ -53,6 +53,12 @@ app.updateSettingsUI = () => {
   if (info) info.textContent = 'In this preview, AI features run on Claude. No API key needed.';
 };
 
+// --- OCR -------------------------------------------------------------------
+
+// Tesseract asks for `${langPath}/eng.traineddata.gz`. The query string makes
+// that request fetch eng.traineddata.wasm, a name the Artifact host serves.
+app.ocrLangPath = new URL('tesseract/lang/eng.traineddata.wasm?for=', location.href).href;
+
 // --- Downloads -----------------------------------------------------------
 
 app.saveFile = async (filename, blob) => {
@@ -195,7 +201,7 @@ banner.setAttribute('role', 'region');
 banner.setAttribute('aria-label', 'Preview notes');
 banner.innerHTML = `
   <p><strong>Preview build.</strong> AI features run on Claude (it asks your permission first).
-  Sign-in, cloud sync and OCR (photos, scanned PDFs) are off here. Data stays in this browser.</p>
+  Sign-in and cloud sync are off here. Data stays in this browser.</p>
   <button class="wa-btn primary" id="wa-sample-btn">Add sample questions</button>
   <button class="wa-btn" id="wa-hide-btn" aria-label="Hide preview notes">Hide</button>`;
 document.body.appendChild(banner);

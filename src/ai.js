@@ -93,7 +93,8 @@ export const aiMixin = {
     return createWorker('eng', 1, {
       workerPath: `${base}worker.min.js`,
       corePath: `${base}core`,
-      langPath: `${base}lang`,
+      // The Claude preview overrides this (see artifact/shim.js).
+      langPath: this.ocrLangPath || `${base}lang`,
       workerBlobURL: false,
     });
   },
