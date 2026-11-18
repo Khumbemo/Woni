@@ -7,7 +7,7 @@ Because the key is yours, the Worker only forwards what the app needs:
 | Protection | Default | Where |
 |---|---|---|
 | Model fixed to `llama-3.3-70b-versatile` | always on | `index.js` |
-| Response capped at 2,048 tokens, prompt at 60,000 characters, 20 messages | always on | `index.js` |
+| Response capped at 8,192 tokens (one part of a paper, ~20 questions), prompt at 60,000 characters, 20 messages | always on | `index.js` |
 | Only the app's origins may call it | Firebase Hosting, Capacitor, `localhost:5173` | `ALLOWED_ORIGINS` var |
 | Burst limit per IP | 10 requests / minute | `[[ratelimits]]` in `wrangler.toml` |
 | Daily quota per IP | 30 requests / day | `USAGE` KV namespace + `DAILY_LIMIT` var |

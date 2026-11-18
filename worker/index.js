@@ -11,7 +11,7 @@
  */
 
 export const MODEL = 'llama-3.3-70b-versatile';
-export const MAX_TOKENS = 2048;
+export const MAX_TOKENS = 8192; // a full part of a paper (~20 questions as JSON) needs ~4-6k
 export const MAX_PROMPT_CHARS = 60000;
 export const MAX_MESSAGES = 20;
 const DEFAULT_DAILY_LIMIT = 30;

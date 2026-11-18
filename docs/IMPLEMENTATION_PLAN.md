@@ -150,6 +150,24 @@ The second check catches many mistakes but not all: two AI answers can agree and
 ### Tests
 84 unit tests (sync between simulated devices with wrong clocks, library and chat sync, missing cloud files, AI prompt and second check), 7 rules tests (new: personal library files), 54 end-to-end tests (new: Question Bank, reporting, deletions, contrast in both themes), plus browser checks of offline OCR on a photo and a scanned PDF with all outside network blocked.
 
+## Phase 6: Done (whole papers, security update)
+
+### Long papers are analysed in full
+| Problem | Fix |
+|---|---|
+| Only ~12,000 characters of a paper reached the AI (its start, middle and end), and PDFs were read only to page 20, so most of a 100+ question paper was skipped | Papers are split into parts of ~6,000 characters, cut just before a question number, and every part is analysed. PDFs are read to page 60 (OCR up to 30 scanned pages) |
+| The proxy caps each reply at 2,048 tokens (~10 questions of JSON). A longer reply was cut off mid-JSON and the whole analysis came back empty | Complete questions are recovered from a cut-off reply, and the AI is asked again for the text after the last one |
+| The answer key at the end of a paper never reached questions far from it | The key is found and sent with every part |
+| Hitting the per-minute AI limit failed the analysis | Waits 20, 40 then 60 seconds and retries (not for the daily limit) |
+| A failure part-way lost everything | Questions from the parts already done are kept, with a message saying how many parts were missed |
+
+Checked with a generated 13-page, 150-question PDF through the real Upload screen in Chromium and WebKit, with the AI mocked to cut replies off at ~10 questions like the current proxy: all 150 questions found once, in 17 AI requests. With the Worker redeployed (its reply cap is now 8,192 tokens) a paper like that needs about 6 requests.
+
+Each part is one AI request, so the proxy's daily limit (`DAILY_LIMIT`, 30 requests per person) now covers fewer papers. Raise it in `worker/wrangler.toml` if you want to allow more; each request costs you Groq usage. One analysis still counts as one of the 5 free analyses.
+
+### Security
+- `npm audit` reported 4 high-severity issues in `@grpc/grpc-js` 1.9, bundled with Firebase's Firestore. Firebase 13 still uses 1.9, so upgrading Firebase would not fix it. An npm `override` moves Firestore to grpc-js 1.14.7: `npm audit --omit=dev` now reports 0 vulnerabilities. The browser app never loads grpc-js (it is used when Firestore runs in Node, e.g. the rules tests, which pass with 1.14.7).
+
 ## Steps only you can do
 
 These need your Firebase or Cloudflare accounts:
@@ -163,6 +181,6 @@ These need your Firebase or Cloudflare accounts:
 
 - Reset is per device: a signed-in user's cloud copy is kept and comes back on the next sync (Import is the way to replace data everywhere).
 - Library books over 50 MB stay on the device they were added on.
-- OCR reads English only, and at most 10 scanned pages per PDF.
+- OCR reads English only, and at most 30 scanned pages per PDF. PDFs are read to page 60, and one analysis covers up to 16 parts (~96,000 characters, a few full papers); upload more as a second analysis.
 - The answer check is a second AI opinion, not proof. Answers from a paper's own key are the most reliable.
 - Safari is tested with Playwright's WebKit build, which is the same engine but not Apple's own browser; a quick check on a real iPhone or iPad is still worthwhile.
