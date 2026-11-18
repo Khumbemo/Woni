@@ -4,9 +4,10 @@ import { useState, useEffect } from 'preact/hooks';
 let nextToastId = 0;
 
 const TOAST_COLORS = {
-  error:   'linear-gradient(135deg, #ef4444, #dc2626)',
-  success: 'linear-gradient(135deg, #10b981, #059669)',
-  info:    'linear-gradient(135deg, #3b82f6, #2563eb)',
+  // Dark enough for white text to meet WCAG AA (4.5:1) across the whole gradient.
+  error:   'linear-gradient(135deg, #b91c1c, #991b1b)',
+  success: 'linear-gradient(135deg, #047857, #065f46)',
+  info:    'linear-gradient(135deg, #1d4ed8, #1e40af)',
 };
 
 export default function Toast() {

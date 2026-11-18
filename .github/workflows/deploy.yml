@@ -1,0 +1,100 @@
+name: Deploy
+
+# Deploys the Firebase security rules and the AI proxy Worker when they change
+# on main (or when run by hand from the Actions tab). Each job is skipped, with
+# a warning, until its credentials are added as repository secrets:
+#   FIREBASE_SERVICE_ACCOUNT  - JSON key of a service account with the
+#                               "Firebase Rules Admin" role
+#   CLOUDFLARE_API_TOKEN      - API token with "Edit Cloudflare Workers"
+#   CLOUDFLARE_ACCOUNT_ID
+# See README.md, "Automatic deploys".
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - firestore.rules
+      - storage.rules
+      - firebase.json
+      - .firebaserc
+      - worker/**
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  firebase-rules:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+    steps:
+      - name: Check credentials
+        if: env.HAS_KEY != 'true'
+        run: echo "::warning::FIREBASE_SERVICE_ACCOUNT is not set, so the Firebase rules were not deployed."
+
+      - uses: actions/checkout@v4
+        if: env.HAS_KEY == 'true'
+
+      - uses: actions/setup-node@v4
+        if: env.HAS_KEY == 'true'
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - uses: actions/setup-java@v4
+        if: env.HAS_KEY == 'true'
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Install dependencies
+        if: env.HAS_KEY == 'true'
+        run: npm ci
+
+      # Never deploy rules that fail their tests.
+      - name: Test the rules
+        if: env.HAS_KEY == 'true'
+        run: npm run test:rules
+
+      - name: Deploy the rules
+        if: env.HAS_KEY == 'true'
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          key="$RUNNER_TEMP/service-account.json"
+          printf '%s' "$SERVICE_ACCOUNT" > "$key"
+          chmod 600 "$key"
+          GOOGLE_APPLICATION_CREDENTIALS="$key" npx firebase deploy --only firestore:rules,storage --non-interactive
+          rm -f "$key"
+
+  worker:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEY: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+    steps:
+      - name: Check credentials
+        if: env.HAS_KEY != 'true'
+        run: echo "::warning::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID is not set, so the Worker was not deployed."
+
+      - uses: actions/checkout@v4
+        if: env.HAS_KEY == 'true'
+
+      - uses: actions/setup-node@v4
+        if: env.HAS_KEY == 'true'
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Test the Worker
+        if: env.HAS_KEY == 'true'
+        run: npm ci && npx vitest run worker
+
+      - name: Deploy the Worker
+        if: env.HAS_KEY == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker

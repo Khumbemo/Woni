@@ -121,23 +121,39 @@ export function parseJSON(raw) {
 }
 
 /**
- * Stores that sync to the cloud, and whether their local keys are
- * auto-incremented (device-specific) or meaningful (e.g. "csir_net_Genetics").
+ * Stores that sync to the cloud.
+ * - autoKey: local keys are auto-incremented (device-specific), so they never
+ *   leave the device; otherwise `key` names the meaningful key field.
+ * - binary: the record's `data` (an ArrayBuffer) goes to Cloud Storage and
+ *   Firestore keeps only the metadata.
  */
 export const SYNC_STORES = {
   papers: { autoKey: true },
   questions: { autoKey: true },
   flashcards: { autoKey: true },
   mock_tests: { autoKey: true },
-  topics: { autoKey: false },
-  progress: { autoKey: false },
+  topics: { autoKey: false, key: 'id' },
+  progress: { autoKey: false, key: 'id' },
+  chat_history: { autoKey: false, key: 'exam' },
+  library: { autoKey: true, binary: true },
 };
 
+function randomId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  // Older browsers (Safari < 15.4): RFC 4122 v4 from getRandomValues.
+  const b = globalThis.crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
 /** Stable cross-device id for a record; also its Firestore document id. */
-export function makeSyncId(store, record, uuid = () => crypto.randomUUID()) {
-  if (SYNC_STORES[store] && !SYNC_STORES[store].autoKey && record.id != null) {
+export function makeSyncId(store, record, uuid = randomId) {
+  const cfg = SYNC_STORES[store];
+  if (cfg && !cfg.autoKey && record[cfg.key] != null) {
     // Same topic on two devices must map to the same document. Encoding keeps '/' out of the doc id.
-    return `${store}:${encodeURIComponent(String(record.id))}`;
+    return `${store}:${encodeURIComponent(String(record[cfg.key]))}`;
   }
   return uuid();
 }
@@ -189,4 +205,45 @@ export function toPdfText(str) {
 export function updateMastery(previous, attempts, sessionScore, weight = 0.4) {
   if (!attempts || previous == null) return Math.round(sessionScore);
   return Math.round(previous * (1 - weight) + sessionScore * weight);
+}
+
+/** ArrayBuffer -> base64 (chunked so large files don't overflow the call stack). */
+export function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
+/** base64 -> ArrayBuffer. */
+export function base64ToArrayBuffer(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+/** Lower-case words of a text, without punctuation (keeps letters and digits in any script). */
+export function words(text) {
+  return String(text || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '')
+    .split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+}
+
+/**
+ * Whether a question the AI returned actually appears in the paper text.
+ * True if its source quote is found verbatim (ignoring case, spacing and
+ * punctuation), or if nearly all of the question's longer words occur in the paper.
+ */
+export function foundInPaper(question, paperText) {
+  const paper = words(paperText);
+  if (paper.length === 0) return true; // nothing to check against
+  const flat = ' ' + paper.join(' ') + ' ';
+  const quote = words(question.source);
+  if (quote.length >= 4 && flat.includes(' ' + quote.join(' ') + ' ')) return true;
+  const vocab = new Set(paper);
+  const key = words(question.text).filter(w => w.length >= 4);
+  if (key.length === 0) return false;
+  return key.filter(w => vocab.has(w)).length / key.length >= 0.8;
 }

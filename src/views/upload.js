@@ -2,12 +2,16 @@
  * Woni — Upload & Analysis View Module
  * Handles file uploads, AI analysis, analysis review, and the analysis chat assistant.
  */
-import { answerToLetter } from '../utils.js';
+import { answerToLetter, foundInPaper } from '../utils.js';
+import { flashcardBack } from './bank.js';
+
+const NOT_IN_PAPER = 'Not found in your paper (may be AI-invented)';
 
 export const uploadMixin = {
   updateUploadView() {
     this.renderFileList();
     this.renderAnalysisAssistant();
+    this.renderPaperList();
   },
 
   handleFiles(files) {
@@ -93,7 +97,7 @@ export const uploadMixin = {
 
         let text = '';
         const ext = file.name.split('.').pop().toLowerCase();
-        if (ext === 'pdf') text = await this.extractPDFText(file);
+        if (ext === 'pdf') text = await this.extractPDFText(file, msg => { if (status) status.textContent = `${file.name}: ${msg}`; });
         else if (['jpg', 'jpeg', 'png'].includes(ext)) text = await this.extractImageText(file);
         else text = await file.text();
 
@@ -101,7 +105,7 @@ export const uploadMixin = {
       }
 
       if (extractedTexts.every(t => !t.text.trim())) {
-        throw new Error('No readable text found. If these are scanned pages, upload them as JPG or PNG images instead.');
+        throw new Error('No readable text found in these files, even with OCR. Try a clearer scan or photo.');
       }
 
       if (fill) fill.style.width = '90%';
@@ -119,6 +123,7 @@ export const uploadMixin = {
       for (const t of extractedTexts) {
         await this.dbAdd('papers', { name: t.name, exam: examId, timestamp: Date.now(), text: t.text.slice(0, 10000) });
       }
+      this.renderPaperList();
 
       this.state.latestAnalysisContext = {
         examId,
@@ -128,12 +133,14 @@ export const uploadMixin = {
       };
 
       // Validate before presenting for review
-      const validatedQuestions = (analysis?.questions || []).map(q => this.validateQuestion(q, examId));
+      const paperText = extractedTexts.map(t => t.text).join('\n');
+      const validatedQuestions = (analysis?.questions || []).map(q => this.validateQuestion(q, examId, paperText));
       const validatedTopics = (analysis?.topics || []).map(t => this.validateTopic(t, examId));
 
       this.state.pendingAnalysis = {
         examId,
-        questions: validatedQuestions.map(q => ({ ...q, approved: (q.confidence || 0) >= 0.55 })),
+        // Questions that can't be traced to the paper start unticked: the student opts in.
+        questions: validatedQuestions.map(q => ({ ...q, approved: (q.confidence || 0) >= 0.55 && !q.issues.includes(NOT_IN_PAPER) })),
         topics: validatedTopics.map(t => ({ ...t, approved: (t.confidence || 0) >= 0.55 })),
       };
 
@@ -179,16 +186,30 @@ export const uploadMixin = {
     const flaggedT = p.topics.filter(t => t.issues.length > 0 || t.confidence < 0.6).length;
     summary.textContent = `${p.questions.length} questions, ${p.topics.length} topics · Flagged: ${flaggedQ + flaggedT}`;
 
-    const qRows = p.questions.map((q, idx) => `
+    const qRows = p.questions.map((q, idx) => {
+      const letter = answerToLetter(q);
+      const answerText = letter ? `${letter}) ${q.options[letter.charCodeAt(0) - 65]}` : String(q.answer || '?');
+      const answerBadge = q.answerSource === 'paper'
+        ? '<span class="ar-badge ok">Answer from paper\'s key</span>'
+        : '<span class="ar-badge warn">Answer chosen by AI</span>';
+      const check = q.recheck
+        ? (q.recheck.agrees
+          ? '<span class="ar-badge ok">Second check agrees</span>'
+          : `<span class="ar-badge bad">Second check says ${this.escapeHtml(q.recheck.answer)}</span>`)
+        : '';
+      return `
       <div class="analysis-review-item">
         <div class="analysis-review-head">
           <label class="analysis-review-title"><input type="checkbox" data-kind="question" data-idx="${idx}" ${q.approved ? 'checked' : ''}> Q${idx + 1}: ${this.escapeHtml(q.topic || 'General')}</label>
           <span class="analysis-review-meta">confidence ${(q.confidence * 100).toFixed(0)}%</span>
         </div>
-        <div class="analysis-review-meta">${this.escapeHtml((q.text || '').slice(0, 140))}</div>
+        <div class="analysis-review-meta">${this.escapeHtml((q.text || '').slice(0, 200))}</div>
+        <div class="analysis-review-meta">Answer: <strong>${this.escapeHtml(answerText)}</strong> ${answerBadge} ${check}</div>
+        ${q.recheck && !q.recheck.agrees && q.recheck.reason ? `<div class="analysis-review-meta">Why: ${this.escapeHtml(q.recheck.reason)}</div>` : ''}
+        ${q.source ? `<div class="analysis-review-quote">“${this.escapeHtml(q.source.slice(0, 200))}”</div>` : ''}
         <div class="analysis-review-issues">${q.issues.length ? this.escapeHtml(q.issues.join(', ')) : 'No rule issues'}</div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
 
     const tRows = p.topics.map((t, idx) => `
       <div class="analysis-review-item">
@@ -202,6 +223,8 @@ export const uploadMixin = {
     `).join('');
 
     list.innerHTML = qRows + tRows;
+    const recheckBtn = document.getElementById('recheck-answers-btn');
+    if (recheckBtn) recheckBtn.classList.toggle('hidden', p.questions.length === 0);
     list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
       cb.addEventListener('change', (e) => {
         const kind = e.target.dataset.kind;
@@ -210,6 +233,45 @@ export const uploadMixin = {
         if (kind === 'topic' && p.topics[idx]) p.topics[idx].approved = e.target.checked;
       });
     });
+  },
+
+  /** Ask the AI to answer the pending questions again, blind, and flag disagreements. */
+  async recheckPendingAnswers() {
+    const p = this.state.pendingAnalysis;
+    if (!p || p.questions.length === 0 || p.rechecking) return;
+    const btn = document.getElementById('recheck-answers-btn');
+    const label = btn?.textContent;
+    p.rechecking = true;
+    if (btn) { btn.disabled = true; btn.textContent = 'Checking answers...'; }
+    try {
+      const results = await this.recheckAnswers(p.examId, p.questions);
+      let disagree = 0;
+      for (const r of results) {
+        const q = p.questions[r.index];
+        if (!q) continue;
+        const agrees = answerToLetter(q) === r.answer;
+        q.recheck = { answer: r.answer, agrees, reason: r.reason };
+        q.issues = q.issues.filter(i => !i.startsWith('Second check'));
+        if (agrees) {
+          q.confidence = Math.min(0.98, q.confidence + 0.1);
+        } else {
+          disagree++;
+          q.issues.push(`Second check disagrees (says ${r.answer})`);
+          q.confidence = Math.max(0.2, q.confidence - 0.3);
+          q.approved = false;
+        }
+      }
+      this.renderAnalysisReview();
+      const missed = p.questions.length - results.length;
+      this.showToast(disagree
+        ? `${disagree} answer${disagree > 1 ? 's' : ''} disputed and unticked. Check them against your textbook.`
+        : `Second check agrees with all ${results.length} answers${missed ? ` (${missed} not checked)` : ''}.`, disagree ? 'info' : 'success');
+    } catch (e) {
+      this.showToast('Answer check failed: ' + e.message, 'error');
+    } finally {
+      p.rechecking = false;
+      if (btn) { btn.disabled = false; btn.textContent = label; }
+    }
   },
 
   async saveReviewedAnalysis() {
@@ -231,19 +293,19 @@ export const uploadMixin = {
     for (const q of approvedQuestions) {
       const clean = { ...q };
       delete clean.issues; delete clean.approved;
+      if (clean.recheck) clean.recheck = { answer: clean.recheck.answer, agrees: clean.recheck.agrees };
       clean.exam = p.examId;
       const key = norm(clean.text);
       if (!key || seen.has(key)) { skippedQ++; continue; }
       seen.add(key);
 
-      const letter = answerToLetter(clean);
-      const answerText = letter ? `${letter}) ${clean.options[letter.charCodeAt(0) - 65]}` : clean.answer;
       const questionId = await this.dbAdd('questions', clean);
       await this.dbAdd('flashcards', {
         questionId,
+        questionSyncId: clean.syncId, // local ids differ between devices; sync ids don't
         exam: p.examId,
         front: clean.text,
-        back: `Answer: ${answerText}${clean.explanation ? `\n\nExplanation: ${clean.explanation}` : ''}`,
+        back: flashcardBack(clean),
         topic: clean.topic,
         nextReview: Date.now(),
         interval: 0,
@@ -328,7 +390,7 @@ export const uploadMixin = {
   },
 
   // --- Validation ---
-  validateQuestion(question, examId) {
+  validateQuestion(question, examId, paperText = '') {
     const issues = [];
     const options = Array.isArray(question.options) ? question.options.filter(Boolean) : [];
     const text = String(question.text || '').trim();
@@ -344,6 +406,10 @@ export const uploadMixin = {
     }
     if (examId && !this.isRelevantToExam(examId, question.topic, text)) {
       issues.push('Possibly outside the exam syllabus');
+    }
+    // The AI is asked to copy questions from the paper; one it can't be traced to may be invented.
+    if (paperText && text && !foundInPaper({ text, source: question.source }, paperText)) {
+      issues.push(NOT_IN_PAPER);
     }
 
     let confidence = typeof question.confidence === 'number' ? question.confidence : 0.65;

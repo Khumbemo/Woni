@@ -11,11 +11,12 @@
   --border-hover: #38384a;
   --text:         #eeeef5;
   --muted:        #8888aa;
-  --muted2:       #555568;
+  --muted2:       #82829f;
   --accent:       #f97316;          /* warm orange — WONI brand */
+  --on-accent:    #111111;          /* text on accent fills (6.7:1; white would be 2.8:1) */
   --green:        #10b981;
   --blue:         #3b82f6;
-  --red:          #ef4444;
+  --red:          #f87171;
   --gold:         #f59e0b;
   --grid-line:    rgba(255,255,255,.03);
 
@@ -41,9 +42,17 @@
   --border:       #dee2e6;
   --border-hover: #ced4da;
   --text:         #212529;
-  --muted:        #6c757d;
-  --muted2:       #adb5bd;
+  --muted:        #5c636a;
+  --muted2:       #5f666d;
   --grid-line:    rgba(0,0,0,.03);
+  /* Darker brand and status colours: the bright ones are under 3.5:1 on white.
+     All text/background pairs here meet WCAG AA (4.5:1); see tests/e2e/contrast.spec.js. */
+  --accent:       #c2410c;
+  --on-accent:    #ffffff;
+  --green:        #047857;
+  --blue:         #1d4ed8;
+  --red:          #b91c1c;
+  --gold:         #92400e;
 }
 
 /* Reset & Global */
@@ -84,7 +93,7 @@ body {
 .woni-dot-small {
   width: 24px; height: 24px; border-radius: 50%;
   background: var(--accent); display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 900; color: #fff;
+  font-size: 14px; font-weight: 900; color: var(--on-accent);
 }
 .woni-wordmark-small { font-family: var(--serif); font-size: 18px; font-weight: 900; letter-spacing: -0.5px; }
 
@@ -439,8 +448,30 @@ body {
 .analysis-review-actions {
   margin-top: 12px;
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 8px;
 }
+.analysis-review-quote {
+  margin: 6px 0;
+  padding-left: 8px;
+  border-left: 2px solid var(--border);
+  font-size: 11px;
+  font-style: italic;
+  color: var(--muted);
+}
+.ar-badge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid currentColor;
+}
+.ar-badge.ok { color: var(--green); }
+.ar-badge.warn { color: var(--gold); }
+.ar-badge.bad { color: var(--red); }
 
 /* Practice Cards */
 .practice-options { display: grid; gap: 16px; }
@@ -471,7 +502,7 @@ body {
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 12px; color: var(--muted);
 }
-.option-btn.selected .opt-letter { background: var(--accent); color: #fff; }
+.option-btn.selected .opt-letter { background: var(--accent); color: var(--on-accent); }
 
 /* Flashcard Box */
 .flashcard-box {
@@ -505,7 +536,7 @@ body {
 .buddy-face {
   width: 100%; height: 100%; background: var(--accent); border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  color: #fff;
+  color: var(--on-accent);
   box-shadow: 0 0 20px rgba(249,115,22,0.4), 0 0 40px rgba(249,115,22,0.15);
   position: relative; z-index: 2;
   animation: buddyBreathe 4s ease-in-out infinite;
@@ -536,7 +567,7 @@ body {
   border-radius: 20px; white-space: nowrap; font-size: 12px; font-weight: 600;
   cursor: pointer; color: var(--muted); transition: all 0.2s;
 }
-.lib-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.lib-tab.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
 /* Study Assistant Card */
 .study-assistant-card {
@@ -561,7 +592,7 @@ body {
   width: 40px; height: 40px; border-radius: 12px;
   background: linear-gradient(135deg, var(--accent), var(--gold));
   display: flex; align-items: center; justify-content: center;
-  color: #fff; flex-shrink: 0;
+  color: var(--on-accent); flex-shrink: 0;
 }
 .sa-icon svg { width: 20px; height: 20px; }
 .sa-header-info { display: flex; flex-direction: column; }
@@ -722,17 +753,18 @@ body {
 .chart-card h4 { font-family: var(--serif); margin-bottom: 16px; color: var(--text); }
 .heatmap-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .heatmap-topic {
+  /* The green tint (set inline) shows mastery; text stays in the theme's text colour so it is always readable. */
   padding: 16px; border-radius: 12px; display: flex; flex-direction: column;
-  color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  color: var(--text); border: 1px solid var(--border); border-left: 4px solid var(--green);
 }
 .ht-name { font-weight: 700; font-size: 13px; }
-.ht-freq { font-size: 10px; opacity: 0.9; font-weight: 600; }
-.ht-subtext { font-size: 9px; opacity: 0.7; }
+.ht-freq { font-size: 11px; font-weight: 600; }
+.ht-subtext { font-size: 11px; }
 
 /* Forms */
 .form-group { margin-bottom: 16px; }
 .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
-.form-group input, .form-group select {
+.form-group input, .form-group select, .form-group textarea {
   width: 100%; padding: 10px 14px; background: var(--surface);
   border: 1px solid var(--border); border-radius: 8px; color: var(--text);
   font-family: var(--sans); outline: none;
@@ -774,14 +806,14 @@ body {
   cursor: pointer; transition: all 0.2s; background: var(--surface2); color: var(--text);
   min-height: 48px;
 }
-.btn.accent { background: var(--accent); color: #fff; }
+.btn.accent { background: var(--accent); color: var(--on-accent); }
 .btn.large { padding: 14px 28px; font-size: 16px; width: 100%; }
 .btn.small { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
 .woni-mark-large { margin-bottom: 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .woni-dot-large {
   width: 64px; height: 64px; border-radius: 50%;
   background: var(--accent); display: flex; align-items: center; justify-content: center;
-  font-size: 32px; font-weight: 900; color: #fff; box-shadow: 0 0 30px rgba(249,115,22,0.3);
+  font-size: 32px; font-weight: 900; color: var(--on-accent); box-shadow: 0 0 30px rgba(249,115,22,0.3);
 }
 .woni-wordmark-large { font-family: var(--serif); font-size: 36px; font-weight: 900; letter-spacing: -1px; }
 
@@ -980,3 +1012,44 @@ body {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
+
+/* Question bank & answer review */
+.form-group textarea { resize: vertical; line-height: 1.4; }
+.form-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.bank-panel { max-width: 720px; text-align: left; padding: 20px; }
+.bank-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.bank-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.bank-controls input, .bank-controls select {
+  flex: 1 1 200px; min-width: 0; padding: 10px 12px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: var(--sans);
+}
+.bank-controls select { flex: 0 1 200px; }
+.bank-summary { font-size: 12px; margin: 10px 0; }
+.bank-list { display: grid; gap: 10px; }
+.bank-item { padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface2); }
+.bank-text { font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+.bank-meta { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.bank-actions { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; }
+.bank-more { width: 100%; }
+.bank-empty { text-align: center; padding: 24px 0; }
+.paper-list-wrap { margin-top: 20px; }
+.paper-list-title { font-size: 14px; margin-bottom: 8px; }
+.review-heading { margin: 8px 0 12px; }
+.results-review { display: grid; gap: 10px; text-align: left; }
+.review-item { padding: 12px; border-radius: 10px; border: 1px solid var(--border); border-left-width: 3px; background: var(--surface2); }
+.review-item.right { border-left-color: var(--green); }
+.review-item.wrong { border-left-color: var(--red); }
+.review-q { font-size: 14px; line-height: 1.45; margin-bottom: 6px; overflow-wrap: anywhere; }
+.review-a { font-size: 13px; }
+.review-exp { font-size: 12px; color: var(--muted); margin: 6px 0; }
+.review-item .btn { margin-top: 6px; }
+
+/* Delete button on your own library books */
+.book-wrap { position: relative; display: grid; }
+.book-del {
+  position: absolute; top: 6px; right: 6px; width: 32px; height: 32px;
+  display: grid; place-items: center; padding: 0; cursor: pointer;
+  background: var(--surface); color: var(--muted); border: 1px solid var(--border); border-radius: 8px;
+}
+.book-del svg { width: 16px; height: 16px; }
+.book-del:hover, .book-del:focus-visible { color: var(--red); border-color: var(--red); }

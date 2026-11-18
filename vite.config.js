@@ -1,11 +1,50 @@
 import { defineConfig } from 'vite';
 import preact from '@preact/preset-vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import fs from 'fs';
+import { createRequire } from 'module';
+import path from 'path';
+
+const require = createRequire(import.meta.url);
+const pkgDir = name => path.dirname(require.resolve(`${name}/package.json`));
+
+/**
+ * Tesseract (image OCR) normally downloads its worker, WebAssembly core and
+ * English language data from a CDN. Serve them from the app instead, so OCR
+ * works offline and in the Android app. Paths match src/ai.js.
+ */
+const TESSERACT_FILES = {
+  'tesseract/worker.min.js': () => path.join(pkgDir('tesseract.js'), 'dist/worker.min.js'),
+  'tesseract/core/tesseract-core-lstm.wasm.js': () => path.join(pkgDir('tesseract.js-core'), 'tesseract-core-lstm.wasm.js'),
+  'tesseract/core/tesseract-core-simd-lstm.wasm.js': () => path.join(pkgDir('tesseract.js-core'), 'tesseract-core-simd-lstm.wasm.js'),
+  'tesseract/lang/eng.traineddata.gz': () => path.join(pkgDir('@tesseract.js-data/eng'), '4.0.0_best_int/eng.traineddata.gz'),
+};
+
+function tesseractAssets() {
+  return {
+    name: 'woni-tesseract-assets',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const rel = decodeURIComponent((req.url || '').split('?')[0]).replace(/^\/+/, '');
+        const source = TESSERACT_FILES[rel];
+        if (!source) return next();
+        res.setHeader('Content-Type', rel.endsWith('.gz') ? 'application/gzip' : 'text/javascript');
+        fs.createReadStream(source()).pipe(res);
+      });
+    },
+    generateBundle() {
+      for (const [fileName, source] of Object.entries(TESSERACT_FILES)) {
+        this.emitFile({ type: 'asset', fileName, source: fs.readFileSync(source()) });
+      }
+    },
+  };
+}
 
 export default defineConfig({
   root: './',
   plugins: [
     preact(),
+    tesseractAssets(),
     VitePWA({
       registerType: 'autoUpdate',
       devOptions: {
@@ -29,6 +68,14 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,mjs,css,html,ico,png,svg,json,webmanifest}'],
+        // OCR files are large and only needed by people who scan images:
+        // cache them the first time they're used instead of on install.
+        globIgnores: ['tesseract/**'],
+        runtimeCaching: [{
+          urlPattern: ({ url }) => url.pathname.includes('/tesseract/'),
+          handler: 'CacheFirst',
+          options: { cacheName: 'woni-ocr', expiration: { maxEntries: 10 } },
+        }],
         maximumFileSizeToCacheInBytes: 5000000 // 5 MB
       }
     })

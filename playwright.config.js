@@ -1,4 +1,4 @@
-import { defineConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -16,6 +16,19 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { browserName: 'chromium' },
+    },
+    // Safari's engine (WebKit): desktop, iPhone and iPad.
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+    },
+    {
+      name: 'iphone',
+      use: { ...devices['iPhone 13'] },
+    },
+    {
+      name: 'ipad',
+      use: { ...devices['iPad (gen 7)'] },
     },
   ],
   webServer: {
