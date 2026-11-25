@@ -130,9 +130,12 @@ test('daily goal ring, celebration, badges and calendar', async ({ page }) => {
   await expect(page.locator('#level-name')).toHaveText('Level 1 · Novice');
 
   await page.evaluate(() => window.app.startTopicTest('csir_net', [], 3, { instant: true }));
-  for (let i = 0; i < 3; i++) { await answer(page, 'C'); await page.click('#next-q-btn'); }
-  await expect(page.getByText(/Daily goal reached: 30 XP today!/)).toBeVisible();
+  // The first answer unlocks a badge; the third reaches the goal. Toasts last ~4s, so check each as it happens.
+  await answer(page, 'C');
   await expect(page.getByText('Badge unlocked: 🌱 First Steps!')).toBeVisible();
+  await page.click('#next-q-btn');
+  for (let i = 0; i < 2; i++) { await answer(page, 'C'); await page.click('#next-q-btn'); }
+  await expect(page.getByText(/Daily goal reached: 30 XP today!/)).toBeVisible();
   await page.click('[data-action="exitSession"][data-param="force"]');
   await expect(page.locator('#goal-ring')).toHaveAttribute('aria-label', 'Daily goal: 30 of 30 XP');
   await expect(page.locator('#goal-ring .ring-fill.done')).toHaveCount(1);
