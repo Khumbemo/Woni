@@ -19,6 +19,7 @@ export default function FocusTimer({ onClose }) {
       if (left === 0) {
         setIsRunning(false);
         const nextMode = mode === 'study' ? 'break' : 'study';
+        if (mode === 'study') window.dispatchEvent(new CustomEvent('woni-focus-complete'));
         setMode(nextMode);
         setRemaining(DURATIONS[nextMode]);
         window.dispatchEvent(new CustomEvent('woni-toast', {

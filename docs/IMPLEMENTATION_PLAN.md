@@ -168,6 +168,23 @@ Each part is one AI request, so the proxy's daily limit (`DAILY_LIMIT`, 30 reque
 ### Security
 - `npm audit` reported 4 high-severity issues in `@grpc/grpc-js` 1.9, bundled with Firebase's Firestore. Firebase 13 still uses 1.9, so upgrading Firebase would not fix it. An npm `override` moves Firestore to grpc-js 1.14.7: `npm audit --omit=dev` now reports 0 vulnerabilities. The browser app never loads grpc-js (it is used when Firestore runs in Node, e.g. the rules tests, which pass with 1.14.7).
 
+## Phase 7: Done (making study engaging)
+
+Chosen for what the research on learning supports, not only for fun:
+
+| Feature | Why |
+|---|---|
+| **Practice mode** (instant feedback): after each answer, the right one, the explanation and "Report wrong answer"; an "N in a row" combo. On for the daily challenge and recommended topics, optional for mock tests (remembered). Exam mode is unchanged. | Testing yourself and then seeing the answer improves long-term retention more than re-reading (Roediger & Karpicke 2006; Butler & Roediger 2008) |
+| **Daily Challenge**: 5 questions, weakest topics first, one topic after another; +50 XP bonus once a day | Mixing topics (interleaving) improves learning compared with practising one topic at a time (Rohrer & Taylor 2007) |
+| **XP and levels**: 10 XP per right answer, 2 per attempt, 5 per flashcard, 25 per completed focus session. Each level needs 50 XP more than the last | Game elements have small-to-moderate positive effects on motivation and learning in a meta-analysis (Sailer & Homner 2020) |
+| **Daily goal** (30/50/100/200 XP, in Settings), shown as a ring on the dashboard, with a celebration when reached | Specific, reachable goals help people keep going |
+| **11 achievements** (First Steps, On Fire, Week Warrior, Perfect Score, Centurion, Card Shark, Goal Getter, Challenger, Deep Focus, ...) on the Stats tab | |
+| **Study calendar** (last 12 weeks) and a streak that counts tests, practice, flashcards and focus sessions (before, only mock tests counted) | Makes consistent study visible; spacing study over days helps memory (Cepeda et al. 2006) |
+
+Study activity is kept per device per day in the synced `progress` store (`day:YYYY-MM-DD:<device>`), so two devices never overwrite each other's XP. Writes are queued so quick answers can't lose XP; a unit test proves the queue is needed. Confetti is skipped when the system asks for reduced motion.
+
+Tests: 16 new unit tests (levels, badges, challenge mixing, calendar, cross-device totals, concurrent logging) and 6 new end-to-end tests (practice mode, exam mode, daily challenge, goal ring and celebration, badges and calendar, flashcard/focus XP, reduced motion). The contrast audit now also covers the practice-mode feedback.
+
 ## Steps only you can do
 
 These need your Firebase or Cloudflare accounts:

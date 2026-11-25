@@ -49,6 +49,8 @@ export const progressMixin = {
       });
     }
 
+    this.renderMotivationStats();
+
     const heatmap = document.getElementById('mastery-heatmap');
     if (heatmap) {
       if (topics.length > 0) {

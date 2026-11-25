@@ -60,6 +60,17 @@ const screens = {
     await page.click('#next-q-btn');
     await expect(page.locator('.results-review')).toBeVisible();
   },
+  'practice feedback': async page => {
+    await page.evaluate(async () => {
+      const app = window.app;
+      const qs = await app.dbGetAll('questions');
+      app.openSession('Practice', 'test', [...qs, ...qs].map(q => ({ ...q, flagged: false })), { instant: true });
+    });
+    await page.locator('.option-btn').nth(2).click();
+    await page.click('#next-q-btn');
+    await page.locator('.option-btn').first().click();
+    await expect(page.locator('#instant-feedback')).toBeVisible();
+  },
   'sign in': page => page.evaluate(() => document.getElementById('auth-overlay').classList.remove('hidden')),
   onboarding: page => page.evaluate(() => window.app.showOnboarding()),
   toasts: async page => {

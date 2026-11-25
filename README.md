@@ -12,7 +12,9 @@ Woni is a specialized exam preparation app designed for students targeting **CSI
 - **AI-Powered Analysis**: Upload PDFs (including scanned ones), photos, or text files to extract the questions in them and identify important topics via Groq API. Whole papers are analysed in parts (100+ questions), with the answer key applied throughout. OCR works offline.
 - **Answer Checks**: Each question shows whether its answer came from the paper's key or the AI, questions not found in the paper are flagged, and an optional second AI pass re-answers every question and flags disagreements.
 - **Question Bank**: Search, edit, report and delete questions; reported questions leave tests until fixed.
-- **Mock Tests**: Generate custom tests based on specific exams and topics.
+- **Mock Tests**: Generate custom tests based on specific exams and topics. **Practice mode** shows the right answer and explanation straight after each question, with an "in a row" combo; leave it off to simulate the exam.
+- **Daily Challenge**: 5 questions a day from your weakest topics, mixed together, for bonus XP.
+- **XP, Levels, Daily Goal & Badges**: Every answer, flashcard and 25-minute focus session earns XP. A daily goal ring on the dashboard, 11 achievements, a 12-week study calendar and a streak that counts any kind of study. Celebrations respect the system's reduced-motion setting.
 - **Spaced Repetition Flashcards**: Auto-generated flashcards with an SM-2 algorithm to optimize retention.
 - **Progress Tracking**: Visualized performance trends and topic mastery heatmaps.
 - **PDF Export**: Export your mock test results as study-friendly PDFs.

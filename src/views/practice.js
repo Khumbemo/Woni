@@ -5,6 +5,10 @@
 import { h, render } from 'preact';
 import FocusTimer from '../components/FocusTimer.jsx';
 import { shuffle, answerToLetter, sm2, toPdfText, updateMastery } from '../utils.js';
+import { XP } from '../gamify.js';
+
+const INSTANT_KEY = 'woni_instant_feedback';
+const MAX_SESSION_SECONDS = 2 * 60 * 60;
 
 export const practiceMixin = {
   async updatePracticeView() {
@@ -35,6 +39,8 @@ export const practiceMixin = {
   },
 
   showMockTestSetup() {
+    const instant = document.getElementById('mock-instant');
+    if (instant) instant.checked = localStorage.getItem(INSTANT_KEY) === 'true';
     this.showSubView('mock-test-setup');
   },
 
@@ -43,12 +49,14 @@ export const practiceMixin = {
     const rawCount = parseInt(document.getElementById('mock-q-count')?.value, 10);
     const qCount = Math.min(100, Math.max(1, Number.isFinite(rawCount) ? rawCount : 10));
     const selectedTopics = Array.from(document.querySelectorAll('#mock-topic-checks input:checked')).map(i => i.value);
-    const started = await this.startTopicTest(examId, selectedTopics, qCount);
+    const instant = !!document.getElementById('mock-instant')?.checked;
+    localStorage.setItem(INSTANT_KEY, String(instant));
+    const started = await this.startTopicTest(examId, selectedTopics, qCount, { instant });
     if (started) this.hideSubView('mock-test-setup');
   },
 
   /** Start a mock test from the bank, optionally limited to some topics. Returns false if there were no questions. */
-  async startTopicTest(examId, topics = [], qCount = 10) {
+  async startTopicTest(examId, topics = [], qCount = 10, opts = {}) {
     let allQuestions = await this.dbGetFromIndex('questions', 'exam', examId);
     if (topics.length > 0) {
       allQuestions = allQuestions.filter(q => topics.includes(q.topic));
@@ -61,7 +69,7 @@ export const practiceMixin = {
       return false;
     }
     if (reported) this.showToast(`${reported} reported question${reported > 1 ? 's' : ''} left out.`, 'info');
-    this.openSession('Mock Test', 'test', shuffle(allQuestions).slice(0, qCount));
+    this.openSession(opts.instant ? 'Practice' : 'Mock Test', 'test', shuffle(allQuestions).slice(0, qCount), opts);
     return true;
   },
 
@@ -82,8 +90,16 @@ export const practiceMixin = {
     this.showView('progress');
   },
 
-  openSession(title, type, data) {
-    this.state.session = { title, type, data, index: 0, startTime: Date.now(), answers: [], score: 0, busy: false };
+  /**
+   * opts.instant: show right/wrong and the explanation after each answer
+   * (practice mode) instead of only at the end (exam mode).
+   * opts.challenge: award the daily challenge bonus at the end.
+   */
+  openSession(title, type, data, opts = {}) {
+    this.state.session = {
+      title, type, data, index: 0, startTime: Date.now(), answers: [], score: 0, busy: false,
+      instant: !!opts.instant, challenge: !!opts.challenge, combo: 0, bestCombo: 0, xp: 0,
+    };
     const titleEl = document.getElementById('session-title');
     if (titleEl) titleEl.textContent = title;
     this.showSubView('active-session-overlay');
@@ -107,7 +123,7 @@ export const practiceMixin = {
 
     if (s.type === 'test') {
       content.innerHTML = `
-        <div class="q-header">Question ${s.index + 1} of ${s.data.length}</div>
+        <div class="q-header">Question ${s.index + 1} of ${s.data.length}${s.instant ? ' · Practice mode' : ''}${s.combo >= 2 ? ` <span class="combo-chip">🔥 ${s.combo} in a row</span>` : ''}</div>
         <div class="q-text">${this.escapeHtml(item.text)}</div>
         <p class="kbd-hint">Keyboard: A–D to answer · Enter for next · Esc to exit</p>
         <div class="options-grid">
@@ -118,6 +134,7 @@ export const practiceMixin = {
             </button>
           `).join('')}
         </div>
+        <div id="instant-feedback" class="instant-feedback hidden" aria-live="polite"></div>
       `;
       footer.innerHTML = `<button class="btn" data-action="exitSession">Exit</button><div style="flex:1"></div><button class="btn accent" data-action="nextQuestion" id="next-q-btn" disabled>Next →</button>`;
     } else {
@@ -186,12 +203,50 @@ export const practiceMixin = {
   selectOption(i) {
     i = parseInt(i);
     const s = this.state.session;
+    if (!s || !s.data[s.index]) return;
+    // Practice mode: the first answer is final, as the right one has been shown.
+    if (s.instant && s.answers[s.index] !== undefined) return;
     const btns = document.querySelectorAll('.option-btn');
     btns.forEach(b => b.classList.remove('selected'));
     if (btns[i]) btns[i].classList.add('selected');
     s.answers[s.index] = String.fromCharCode(65 + i);
     const nextBtn = document.getElementById('next-q-btn');
     if (nextBtn) nextBtn.disabled = false;
+    if (s.instant) this.showInstantFeedback();
+  },
+
+  /** Practice mode: mark the answer, explain it, count the combo and award XP straight away. */
+  showInstantFeedback() {
+    const s = this.state.session;
+    const q = s.data[s.index];
+    const given = s.answers[s.index];
+    const correct = answerToLetter(q);
+    const right = given === correct;
+    s.combo = right ? s.combo + 1 : 0;
+    s.bestCombo = Math.max(s.bestCombo, s.combo);
+    const xp = right ? XP.correct : XP.attempt;
+    s.xp += xp;
+
+    document.querySelectorAll('.option-btn').forEach((b, idx) => {
+      const letter = String.fromCharCode(65 + idx);
+      b.disabled = true;
+      if (letter === correct) b.classList.add('correct');
+      else if (letter === given) b.classList.add('wrong');
+    });
+    const box = document.getElementById('instant-feedback');
+    if (box) {
+      const correctText = correct ? `${correct}) ${(q.options || [])[correct.charCodeAt(0) - 65] ?? ''}` : '?';
+      box.className = `instant-feedback ${right ? 'right' : 'wrong'}`;
+      box.innerHTML = `
+        <div class="if-head"><strong>${right ? '✓ Correct!' : '✗ Not quite.'}</strong>
+          <span class="xp-pop">+${xp} XP</span>
+          ${s.combo >= 2 ? `<span class="combo-chip">🔥 ${s.combo} in a row</span>` : ''}</div>
+        ${right ? '' : `<div class="if-answer">Answer: ${this.escapeHtml(correctText)}</div>`}
+        ${q.explanation ? `<div class="if-exp">${this.escapeHtml(q.explanation)}</div>` : ''}
+        ${q.answerSource === 'ai' ? '<div class="if-exp">This answer was chosen by AI, not taken from an answer key.</div>' : ''}
+        ${q.id !== undefined ? `<button class="btn small" data-action="reportQuestion" data-param="${q.id}">Report wrong answer</button>` : ''}`;
+    }
+    this.logActivity({ xp, answered: 1, correct: right ? 1 : 0 }).catch(e => console.error('Could not log activity', e));
   },
 
   nextQuestion() {
@@ -219,6 +274,8 @@ export const practiceMixin = {
       card.ease = ease;
       card.nextReview = Date.now() + (interval * 24 * 60 * 60 * 1000);
       await this.dbPut('flashcards', card);
+      s.xp += XP.card;
+      this.logActivity({ xp: XP.card, cards: 1 }).catch(e => console.error('Could not log activity', e));
       s.index++;
     } finally {
       s.busy = false;
@@ -246,7 +303,24 @@ export const practiceMixin = {
         if (s.answers[i] && s.answers[i] === answerToLetter(q)) { correctCount++; topicStats[topicName].correct++; }
       });
       const score = Math.round((correctCount / s.data.length) * 100);
-      content.innerHTML = `<div class="results-box"><div class="res-score">${score}%</div><p>${correctCount} correct out of ${s.data.length}</p><p class="muted">Time: ${timerEl ? timerEl.textContent : ''}</p><button class="btn small accent" data-action="exportSessionPDF" style="margin-top:20px">Export Results PDF</button></div>
+      // Exam mode awards XP at the end (practice mode already did, answer by answer).
+      if (!s.instant) {
+        const answered = s.answers.filter(Boolean).length;
+        const xp = correctCount * XP.correct + (answered - correctCount) * XP.attempt;
+        s.xp += xp;
+        this.logActivity({ xp, answered, correct: correctCount }).catch(e => console.error('Could not log activity', e));
+      }
+      let bonus = '';
+      if (s.challenge) {
+        s.xp += XP.challenge;
+        bonus = `<p class="challenge-done">⚡ Daily challenge complete: +${XP.challenge} XP bonus</p>`;
+        this.logActivity({ xp: XP.challenge, challenge: true })
+          .then(() => this.celebrate('Daily challenge complete! ⚡'))
+          .catch(e => console.error('Could not log activity', e));
+      }
+      content.innerHTML = `<div class="results-box"><div class="res-score">${score}%</div><p>${correctCount} correct out of ${s.data.length}</p>
+        <p class="xp-earned">+${s.xp} XP${s.bestCombo >= 3 ? ` · best streak ${s.bestCombo} in a row 🔥` : ''}</p>${bonus}
+        <p class="muted">Time: ${timerEl ? timerEl.textContent : ''}</p><button class="btn small accent" data-action="exportSessionPDF" style="margin-top:20px">Export Results PDF</button></div>
         <h4 class="review-heading">Review answers</h4>
         <div class="results-review">${s.data.map((q, i) => this.renderReviewItem(q, i, s.answers[i])).join('')}</div>`;
 
@@ -263,7 +337,7 @@ export const practiceMixin = {
       }
       await this.dbAdd('mock_tests', { exam: s.data[0].exam, date: Date.now(), score, qCount: s.data.length, duration: timerEl ? timerEl.textContent : '', answers: s.answers, questions: s.data });
     } else {
-      content.innerHTML = `<div class="results-box"><h3>Review Complete!</h3><p>You've reviewed ${s.data.length} cards today.</p></div>`;
+      content.innerHTML = `<div class="results-box"><h3>Review Complete!</h3><p>You've reviewed ${s.data.length} cards today.</p><p class="xp-earned">+${s.xp} XP</p></div>`;
     }
     footer.innerHTML = `<button class="btn accent large" data-action="exitSession" data-param="force">Finish</button>`;
   },
@@ -302,6 +376,13 @@ export const practiceMixin = {
   async exitSession(force) {
     if (force === 'force' || await this.confirmAction('Are you sure you want to exit?')) {
       if (this.state.sessionTimer) clearInterval(this.state.sessionTimer);
+      // Flashcard time counts as study time (test time is saved with the test).
+      const s = this.state.session;
+      if (s?.type === 'flashcard' && !s.timeLogged) {
+        s.timeLogged = true;
+        const seconds = Math.min(MAX_SESSION_SECONDS, Math.round((Date.now() - s.startTime) / 1000));
+        if (seconds > 0) this.logActivity({ seconds }).catch(e => console.error('Could not log activity', e));
+      }
       this.hideSubView('active-session-overlay');
       if (this.resumeParticles) this.resumeParticles();
       this.updateDashboard();

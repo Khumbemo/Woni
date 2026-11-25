@@ -18,6 +18,7 @@ import { practiceMixin } from './views/practice.js';
 import { progressMixin } from './views/progress.js';
 import { syncMixin } from './sync.js';
 import { bankMixin } from './views/bank.js';
+import { motivationMixin } from './views/motivation.js';
 import { h, render } from 'preact';
 import Toast from './components/Toast.jsx';
 import './index.css';
@@ -256,6 +257,19 @@ const app = {
     const themeSelect = document.getElementById('theme-select');
     if (themeSelect) themeSelect.addEventListener('change', e => this.setTheme(e.target.value));
 
+    // Daily goal
+    const goalSelect = document.getElementById('daily-goal-select');
+    if (goalSelect) {
+      goalSelect.value = String(this.getDailyGoal());
+      goalSelect.addEventListener('change', e => {
+        this.setDailyGoal(e.target.value);
+        this.showToast(`Daily goal set to ${e.target.value} XP.`, 'success');
+      });
+    }
+
+    // A finished 25-minute Focus Timer session (reading or revision) earns XP.
+    window.addEventListener('woni-focus-complete', () => this.onFocusComplete());
+
     // Import trigger
     const importBtn = document.getElementById('trigger-import-btn');
     const importFile = document.getElementById('import-file');
@@ -384,7 +398,7 @@ const app = {
 
 // --- Merge all domain modules ---
 Object.assign(app, authMixin, dbMixin, aiMixin, routerMixin, particleMixin,
-  dashboardMixin, libraryMixin, uploadMixin, practiceMixin, progressMixin, syncMixin, bankMixin);
+  dashboardMixin, libraryMixin, uploadMixin, practiceMixin, progressMixin, syncMixin, bankMixin, motivationMixin);
 
 // Expose for legacy compatibility (inline handlers in index.html that haven't been migrated yet)
 window.app = app;
