@@ -25,8 +25,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <!-- Critical CSS: the main stylesheet is loaded by JS, so keep hidden UI hidden until then -->
   <style>.hidden{display:none!important}</style>
-  <script type="module" crossorigin src="/assets/index-DS5AMd5l.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-To2LybFi.css">
+  <script type="module" crossorigin src="/assets/index-mFEH3MVz.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-QIrYdJWx.css">
 <link rel="manifest" href="/manifest.webmanifest"></head>
 <body class="dark-theme">
   <!-- Science Background -->
@@ -291,6 +291,27 @@
               <p>Practice specific topics you're weak in.</p>
             </div>
           </div>
+          <div class="practice-card" data-action="startMistakeReview">
+            <div class="pc-icon"><i data-lucide="rotate-ccw"></i></div>
+            <div class="pc-info">
+              <h4>Mistake Notebook <span id="mistake-count" class="pc-count"></span></h4>
+              <p>Questions you got wrong come back until you get them right twice in a row.</p>
+            </div>
+          </div>
+          <div class="practice-card" data-action="showStarred">
+            <div class="pc-icon"><i data-lucide="star"></i></div>
+            <div class="pc-info">
+              <h4>Starred &amp; Notes <span id="starred-count" class="pc-count"></span></h4>
+              <p>Your starred questions and flashcards, and the notes you've written.</p>
+            </div>
+          </div>
+          <div class="practice-card" data-action="showAiNotes">
+            <div class="pc-icon"><i data-lucide="sparkles"></i></div>
+            <div class="pc-info">
+              <h4>AI Flashcards &amp; Summary</h4>
+              <p>Turn a paper, book pages or your notes into flashcards and a one-page summary.</p>
+            </div>
+          </div>
           <div class="practice-card" data-action="startMixedPractice">
             <div class="pc-icon"><i data-lucide="shuffle"></i></div>
             <div class="pc-info">
@@ -516,6 +537,18 @@
                 <option value="200">200 XP (intense)</option>
               </select>
             </div>
+            <div class="setting-item reminder-item">
+              <div class="setting-info">
+                <span>Daily reminder</span>
+                <p class="muted reminder-help">"Add to calendar" reminds you every day, even when Woni is closed. Woni also reminds you while it's open, if you haven't reached your daily goal.</p>
+              </div>
+              <div class="reminder-controls">
+                <input type="time" id="reminder-time" aria-label="Reminder time">
+                <label class="toggle-row"><input type="checkbox" id="reminder-notify"><span>Notify me</span></label>
+                <button class="btn small" data-action="saveReminder">Save</button>
+                <button class="btn small accent" data-action="addReminderToCalendar">Add to calendar</button>
+              </div>
+            </div>
             <div class="setting-item">
                <span>Target Exams</span>
                <button class="btn small" data-action="showOnboarding">Change</button>
@@ -568,6 +601,69 @@
       <div id="focus-timer-mount"></div>
     </div>
 
+    <!-- Note editor -->
+    <div id="note-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="note-title">
+      <div class="overlay-content bank-panel">
+        <h3 id="note-title">Your note</h3>
+        <p id="note-context" class="muted note-context"></p>
+        <div class="form-group">
+          <label for="note-text">Note (only you see it; it syncs with your account)</label>
+          <textarea id="note-text" rows="5" maxlength="1000" placeholder="e.g. Remember: helicase unwinds, topoisomerase relieves the twist"></textarea>
+        </div>
+        <div class="form-actions">
+          <button class="btn" data-action="cancelNote">Cancel</button>
+          <button class="btn accent" data-action="saveNote">Save note</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Starred & notes -->
+    <div id="starred-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="starred-title">
+      <div class="overlay-content bank-panel">
+        <div class="bank-head">
+          <h3 id="starred-title">Starred &amp; Notes</h3>
+          <button class="btn small" data-action="hideStarred" aria-label="Close">✕</button>
+        </div>
+        <div class="form-actions starred-actions">
+          <button id="starred-practice-btn" class="btn accent" data-action="startStarredQuestions">Practise starred questions</button>
+          <button id="starred-cards-btn" class="btn" data-action="startStarredCards">Review starred cards</button>
+        </div>
+        <div id="starred-list" class="bank-list"></div>
+      </div>
+    </div>
+
+    <!-- AI flashcards & summary -->
+    <div id="ai-notes-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="ai-notes-title">
+      <div class="overlay-content bank-panel">
+        <div class="bank-head">
+          <h3 id="ai-notes-title">AI Flashcards &amp; Summary</h3>
+          <button class="btn small" data-action="hideAiNotes" aria-label="Close">✕</button>
+        </div>
+        <div class="form-group">
+          <label for="ai-source">Study text</label>
+          <select id="ai-source"></select>
+        </div>
+        <div id="ai-paste-wrap" class="form-group">
+          <label for="ai-text">Paste your notes or a passage</label>
+          <textarea id="ai-text" rows="6" placeholder="Paste a page of notes, a textbook passage or an article"></textarea>
+        </div>
+        <div id="ai-pages-wrap" class="planner-row form-group hidden">
+          <label for="ai-page-from">Pages</label>
+          <input type="number" id="ai-page-from" min="1" value="1" aria-label="From page">
+          <span>to</span>
+          <input type="number" id="ai-page-to" min="1" value="5" aria-label="To page">
+          <span class="muted">(up to 15)</span>
+        </div>
+        <div class="form-actions">
+          <button class="btn" data-ai-run data-action="makeAiSummary">Make a summary</button>
+          <button class="btn accent" data-ai-run data-action="makeAiCards">Make flashcards</button>
+        </div>
+        <p id="ai-status" class="muted ai-status" aria-live="polite"></p>
+        <div id="ai-output"></div>
+        <p class="muted ai-note">AI can make mistakes. Check important facts against your textbook before you rely on them.</p>
+      </div>
+    </div>
+
     <!-- Study Planner -->
     <div id="planner-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="planner-title">
       <div class="overlay-content bank-panel">
@@ -608,6 +704,8 @@
             <option value="reported">Reported</option>
             <option value="disputed">Disputed by second check</option>
             <option value="ai">Answer chosen by AI</option>
+            <option value="mistakes">In mistake notebook</option>
+            <option value="starred">Starred or with a note</option>
           </select>
         </div>
         <p id="bank-summary" class="muted bank-summary"></p>

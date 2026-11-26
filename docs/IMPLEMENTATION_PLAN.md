@@ -200,6 +200,22 @@ Found and fixed while testing: the planner cleared its input boxes after saving,
 
 Tests: 21 new unit tests and 5 new end-to-end tests (database upgrade, planner, plan, quests, every mixed format); the contrast audit now covers the planner, the Today panel and all four formats.
 
+## Phase 9: Done (mistakes, stars & notes, AI study notes, reminders, read-aloud)
+
+| Feature | How it works |
+|---|---|
+| **Mistake notebook** | Every answer to a saved question is recorded (exam mode at the end, practice and mixed formats straight away; match/multi per question). A wrong answer puts the question in the notebook; 2 right answers in a row take it out (the history is kept). "Mistake Notebook" in Practice retries the most-missed first; the Question Bank can filter to it. Re-testing what you got wrong is retrieval practice aimed where it helps most. |
+| **Stars & notes** | ☆ Star and 📝 note on questions (practice feedback, test review, Question Bank) and flashcards (during review). "Starred & Notes" lists them and starts a starred-questions practice or a starred-cards review. Stored on the question/card, so they sync. |
+| **AI flashcards & summary** | Source: pasted text, a saved paper, or 1-15 pages of a book on your shelf (PDF text, with OCR for scanned pages). The AI writes up to 15 cards (edit, untick, save; duplicates skipped) or a summary (points + key terms; copy or save as PDF). Up to 12,000 characters per request. |
+| **Daily reminder** | "Add to calendar" downloads an iCalendar file with a daily event and an alert at your time, so any phone or computer calendar reminds you even when Woni is closed. While Woni is open it also reminds you at that time if today's goal isn't met (a system notification if allowed and the tab is in the background). |
+| **Read aloud** | 🔊 Listen reads the question and lettered options, mixed-format items, or the flashcard (the answer too once shown), using the device's built-in speech. Moving on or exiting stops it. Hidden where speech isn't available. |
+
+A web app can't wake itself on a schedule without a push server, so true background notifications aren't offered; the calendar event covers that on every platform. Native Android notifications would need the Capacitor Local Notifications plugin and an APK build, which couldn't be built or tested here.
+
+Found and fixed while testing: the note editor opened behind the test screen when used during a session.
+
+Tests: 9 new unit tests and 5 new end-to-end tests (with the AI server and speech engine mocked); the contrast audit covers the new dialogs.
+
 ## Steps only you can do
 
 These need your Firebase or Cloudflare accounts:

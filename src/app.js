@@ -20,6 +20,7 @@ import { syncMixin } from './sync.js';
 import { bankMixin } from './views/bank.js';
 import { motivationMixin } from './views/motivation.js';
 import { plannerMixin } from './views/planner.js';
+import { toolsMixin } from './views/tools.js';
 import { h, render } from 'preact';
 import Toast from './components/Toast.jsx';
 import './index.css';
@@ -32,7 +33,7 @@ import { createIcons,
   Sparkles, Smile, Zap, Award, Frown,
   FileText, Layers, BarChart3, Timer,
   Plus, HelpCircle, Cloud, ExternalLink, File, X,
-  Send, ChevronDown, ListChecks, Trash2, CalendarCheck, Shuffle
+  Send, ChevronDown, ListChecks, Trash2, CalendarCheck, Shuffle, RotateCcw, Star
 } from 'lucide';
 
 const usedIcons = {
@@ -41,7 +42,7 @@ const usedIcons = {
   Sparkles, Smile, Zap, Award, Frown,
   FileText, Layers, BarChart3, Timer,
   Plus, HelpCircle, Cloud, ExternalLink, File, X,
-  Send, ChevronDown, ListChecks, Trash2, CalendarCheck, Shuffle
+  Send, ChevronDown, ListChecks, Trash2, CalendarCheck, Shuffle, RotateCcw, Star
 };
 
 // Register PWA Service Worker
@@ -83,6 +84,7 @@ const app = {
     this.updateLucide();
 
     await this.initDB();
+    this.initReminderSettings();
 
     // Mount Global Toast Provider
     const toastRoot = document.getElementById('toast-mount');
@@ -403,7 +405,7 @@ const app = {
 
 // --- Merge all domain modules ---
 Object.assign(app, authMixin, dbMixin, aiMixin, routerMixin, particleMixin,
-  dashboardMixin, libraryMixin, uploadMixin, practiceMixin, progressMixin, syncMixin, bankMixin, motivationMixin, plannerMixin);
+  dashboardMixin, libraryMixin, uploadMixin, practiceMixin, progressMixin, syncMixin, bankMixin, motivationMixin, plannerMixin, toolsMixin);
 
 // Expose for legacy compatibility (inline handlers in index.html that haven't been migrated yet)
 window.app = app;
