@@ -126,7 +126,8 @@ export const practiceMixin = {
 
     if (s.type === 'test') {
       content.innerHTML = `
-        <div class="q-header">Question ${s.index + 1} of ${s.data.length}${s.instant ? ' · Practice mode' : ''}${s.combo >= 2 ? ` <span class="combo-chip">🔥 ${s.combo} in a row</span>` : ''}${this.listenButtonHtml?.() || ''}</div>
+        <div class="q-header">Question ${s.index + 1} of ${s.data.length}${s.instant ? ' · Practice mode' : ''}${s.combo >= 2 ? ` <span class="combo-chip">🔥 ${s.combo} in a row</span>` : ''}</div>
+        ${this.listenButtonHtml ? `<div class="q-tools">${this.listenButtonHtml()}</div>` : ''}
         <div class="q-text">${this.escapeHtml(item.text)}</div>
         <p class="kbd-hint">Keyboard: A–D to answer · Enter for next · Esc to exit</p>
         <div class="options-grid">
@@ -454,7 +455,8 @@ export const practiceMixin = {
         <button class="btn accent" data-action="submitMulti" id="multi-submit">Check</button>`;
     }
     content.innerHTML = `
-      <div class="q-header">Question ${s.index + 1} of ${s.data.length} · ${names[item.kind]}${s.combo >= 2 ? ` <span class="combo-chip">🔥 ${s.combo} in a row</span>` : ''}${this.listenButtonHtml?.() || ''}</div>
+      <div class="q-header">Question ${s.index + 1} of ${s.data.length} · ${names[item.kind]}${s.combo >= 2 ? ` <span class="combo-chip">🔥 ${s.combo} in a row</span>` : ''}</div>
+      ${this.listenButtonHtml ? `<div class="q-tools">${this.listenButtonHtml()}</div>` : ''}
       ${body}
       <div id="instant-feedback" class="instant-feedback hidden" aria-live="polite"></div>`;
     footer.innerHTML = `<button class="btn" data-action="exitSession">Exit</button><div style="flex:1"></div><button class="btn accent" data-action="nextQuestion" id="next-q-btn" disabled>Next →</button>`;

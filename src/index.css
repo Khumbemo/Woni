@@ -1229,7 +1229,8 @@ body {
 .item-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .star-btn.on { color: var(--gold); border-color: var(--gold); }
 .item-note { margin-top: 8px; padding: 8px 10px; border-radius: 8px; font-size: 13px; background: var(--surface); border: 1px dashed var(--border); overflow-wrap: anywhere; }
-.listen-btn { margin-left: 8px; vertical-align: middle; }
+.q-tools { display: flex; justify-content: flex-end; margin: -4px 0 4px; }
+.q-tools:empty { display: none; }
 .listen-btn.on { border-color: var(--accent); }
 .card-tools { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .card-tools .listen-btn { margin-left: 0; }

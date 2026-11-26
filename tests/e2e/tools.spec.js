@@ -248,7 +248,7 @@ test('daily reminder: calendar file and in-app reminder', async ({ page }) => {
 test('read aloud: questions with options, flashcard sides, and stop', async ({ page }) => {
   await setup(page);
   await page.evaluate(() => window.app.startTopicTest('csir_net', [], 1, { instant: true }));
-  const listen = page.locator('.q-header [data-action="readAloud"]');
+  const listen = page.locator('.q-tools [data-action="readAloud"]');
   await listen.click();
   const spoken = await page.evaluate(() => window.__spoken.at(-1));
   expect(spoken).toMatch(/^Question \d: which enzyme\? Option A: w1\. Option B: w2\. Option C: right\. Option D: w3\.$/);
