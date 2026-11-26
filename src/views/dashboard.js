@@ -1,7 +1,7 @@
 /**
  * Woni — Dashboard View Module
  */
-import { computeStreak, parseDuration, formatStudyTime } from '../utils.js';
+import { parseDuration, formatStudyTime } from '../utils.js';
 
 export const dashboardMixin = {
   async updateDashboard() {
@@ -20,14 +20,19 @@ export const dashboardMixin = {
     const masteryEl = document.getElementById('dash-mastery');
     if (masteryEl) masteryEl.textContent = `${mastery}%`;
 
+    // Tests keep their own duration; flashcard and focus time is in the activity log.
+    const stats = await this.getStudyStats();
     const studyEl = document.getElementById('dash-study-time');
     if (studyEl) {
-      const seconds = filtered.reduce((sum, t) => sum + parseDuration(t.duration), 0);
+      const seconds = filtered.reduce((sum, t) => sum + parseDuration(t.duration), 0) + stats.seconds;
       studyEl.textContent = formatStudyTime(seconds);
     }
 
+    // Any study counts towards the streak: tests, practice, flashcards, focus sessions.
     const streakEl = document.getElementById('dash-streak');
-    if (streakEl) streakEl.textContent = `${computeStreak(allTests.map(t => t.date))}d`;
+    if (streakEl) streakEl.textContent = `${stats.streak}d`;
+    this.updateMotivation();
+    this.renderTodayPlan();
 
     if (examId) {
       const topics = await this.dbGetFromIndex('topics', 'exam', examId);
@@ -57,14 +62,15 @@ export const dashboardMixin = {
     const examId = this.state.activeExam?.id;
     if (!examId) return;
     this.showView('practice');
-    const started = await this.startTopicTest(examId, [topicName], 10);
+    // Recommended topics are for learning, so show each answer straight away.
+    const started = await this.startTopicTest(examId, [topicName], 10, { instant: true });
     if (!started) this.showToast(`No saved questions for ${topicName} yet. Upload a paper that covers it.`, 'info');
   },
 
   async updateBuddy() {
     if (!this.state.db) return;
     const tests = await this.dbGetAll('mock_tests');
-    const streak = computeStreak(tests.map(t => t.date));
+    const { streak } = await this.getStudyStats();
 
     // Time-of-day aware greetings
     const hour = new Date().getHours();

@@ -20,7 +20,7 @@ import { SYNC_STORES, makeSyncId, planSync, arrayBufferToBase64, base64ToArrayBu
 const BATCH_LIMIT = 400;          // Firestore allows 500 writes per batch
 const OVERLAP_MS = 2 * 60000;     // re-check a little overlap so nothing slips between syncs
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
-const BACKUP_STORES = ['papers', 'questions', 'flashcards', 'progress', 'topics', 'mock_tests', 'chat_history', 'library'];
+const BACKUP_STORES = ['papers', 'questions', 'flashcards', 'progress', 'topics', 'mock_tests', 'chat_history', 'library', 'tasks'];
 const TOMBSTONE_KEY = 'woni_tombstones';
 
 /** Returns a reason the object isn't a Woni backup, or null if it looks valid. */
@@ -287,6 +287,7 @@ export const syncMixin = {
       topics: await this.dbGetAll('topics'),
       mock_tests: await this.dbGetAll('mock_tests'),
       chat_history: await this.dbGetAll('chat_history'),
+      tasks: await this.dbGetAll('tasks'),
       library,
       version: 2,
       exportDate: new Date().toISOString()

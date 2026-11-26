@@ -168,6 +168,38 @@ Each part is one AI request, so the proxy's daily limit (`DAILY_LIMIT`, 30 reque
 ### Security
 - `npm audit` reported 4 high-severity issues in `@grpc/grpc-js` 1.9, bundled with Firebase's Firestore. Firebase 13 still uses 1.9, so upgrading Firebase would not fix it. An npm `override` moves Firestore to grpc-js 1.14.7: `npm audit --omit=dev` now reports 0 vulnerabilities. The browser app never loads grpc-js (it is used when Firestore runs in Node, e.g. the rules tests, which pass with 1.14.7).
 
+## Phase 7: Done (making study engaging)
+
+Chosen for what the research on learning supports, not only for fun:
+
+| Feature | Why |
+|---|---|
+| **Practice mode** (instant feedback): after each answer, the right one, the explanation and "Report wrong answer"; an "N in a row" combo. On for the daily challenge and recommended topics, optional for mock tests (remembered). Exam mode is unchanged. | Testing yourself and then seeing the answer improves long-term retention more than re-reading (Roediger & Karpicke 2006; Butler & Roediger 2008) |
+| **Daily Challenge**: 5 questions, weakest topics first, one topic after another; +50 XP bonus once a day | Mixing topics (interleaving) improves learning compared with practising one topic at a time (Rohrer & Taylor 2007) |
+| **XP and levels**: 10 XP per right answer, 2 per attempt, 5 per flashcard, 25 per completed focus session. Each level needs 50 XP more than the last | Game elements have small-to-moderate positive effects on motivation and learning in a meta-analysis (Sailer & Homner 2020) |
+| **Daily goal** (30/50/100/200 XP, in Settings), shown as a ring on the dashboard, with a celebration when reached | Specific, reachable goals help people keep going |
+| **11 achievements** (First Steps, On Fire, Week Warrior, Perfect Score, Centurion, Card Shark, Goal Getter, Challenger, Deep Focus, ...) on the Stats tab | |
+| **Study calendar** (last 12 weeks) and a streak that counts tests, practice, flashcards and focus sessions (before, only mock tests counted) | Makes consistent study visible; spacing study over days helps memory (Cepeda et al. 2006) |
+
+Study activity is kept per device per day in the synced `progress` store (`day:YYYY-MM-DD:<device>`), so two devices never overwrite each other's XP. Writes are queued so quick answers can't lose XP; a unit test proves the queue is needed. Confetti is skipped when the system asks for reduced motion.
+
+Tests: 16 new unit tests (levels, badges, challenge mixing, calendar, cross-device totals, concurrent logging) and 6 new end-to-end tests (practice mode, exam mode, daily challenge, goal ring and celebration, badges and calendar, flashcard/focus XP, reduced motion). The contrast audit now also covers the practice-mode feedback.
+
+## Phase 8: Done (tasks, plan, quests, question formats)
+
+| Feature | How it works |
+|---|---|
+| **Daily quests** | 3 a day from a pool of 8 (answer 15, get 10 right, review 10 cards, a focus session, the daily challenge, 5 in a row, tick off a task, 5 mixed-format questions), only ones you have content for. The same 3 on every device (chosen from the date). Each finished quest pays +20 XP once, even across devices, and counts towards the daily goal. |
+| **Study planner** | Tasks with optional due dates, grouped Overdue / Today / Upcoming / No date / Done. Ticking a task gives +5 XP once. Overdue and today's tasks show on the dashboard. Tasks sync and are in backups (new `tasks` store, database version 5; existing data is kept, tested). |
+| **Exam countdown and plan** | Set the exam date; "Build my study plan" fills the planner with a task per day (up to 8 weeks): topics get days in proportion to importance × what's left to learn, spread out (weighted round-robin), a mock test every 7th day and revision on the last 2 days. Rebuilding replaces the plan's upcoming tasks; "Start" opens practice for that day's topic. |
+| **Mixed practice** | 10 items made from your multiple-choice questions: true/false, type the answer, match 3-4 pairs, and select every correct question→answer pair. All with instant feedback, XP, combos and topic mastery. |
+
+Typed answers ignore case, accents, punctuation and "the/a/an", but forgive typos only in longer answers (1 for 8-11 letters, 2 for 12+), because many short terms differ by one letter (lipase/ligase, IgG/IgA); numbers must match, and typing one of the wrong options is always wrong.
+
+Found and fixed while testing: the planner cleared its input boxes after saving, which could wipe a task typed straight after the previous one.
+
+Tests: 21 new unit tests and 5 new end-to-end tests (database upgrade, planner, plan, quests, every mixed format); the contrast audit now covers the planner, the Today panel and all four formats.
+
 ## Steps only you can do
 
 These need your Firebase or Cloudflare accounts:

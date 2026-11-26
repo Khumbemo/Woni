@@ -18,6 +18,8 @@ import { practiceMixin } from './views/practice.js';
 import { progressMixin } from './views/progress.js';
 import { syncMixin } from './sync.js';
 import { bankMixin } from './views/bank.js';
+import { motivationMixin } from './views/motivation.js';
+import { plannerMixin } from './views/planner.js';
 import { h, render } from 'preact';
 import Toast from './components/Toast.jsx';
 import './index.css';
@@ -30,7 +32,7 @@ import { createIcons,
   Sparkles, Smile, Zap, Award, Frown,
   FileText, Layers, BarChart3, Timer,
   Plus, HelpCircle, Cloud, ExternalLink, File, X,
-  Send, ChevronDown, ListChecks, Trash2
+  Send, ChevronDown, ListChecks, Trash2, CalendarCheck, Shuffle
 } from 'lucide';
 
 const usedIcons = {
@@ -39,7 +41,7 @@ const usedIcons = {
   Sparkles, Smile, Zap, Award, Frown,
   FileText, Layers, BarChart3, Timer,
   Plus, HelpCircle, Cloud, ExternalLink, File, X,
-  Send, ChevronDown, ListChecks, Trash2
+  Send, ChevronDown, ListChecks, Trash2, CalendarCheck, Shuffle
 };
 
 // Register PWA Service Worker
@@ -256,6 +258,23 @@ const app = {
     const themeSelect = document.getElementById('theme-select');
     if (themeSelect) themeSelect.addEventListener('change', e => this.setTheme(e.target.value));
 
+    // Daily goal
+    const goalSelect = document.getElementById('daily-goal-select');
+    if (goalSelect) {
+      goalSelect.value = String(this.getDailyGoal());
+      goalSelect.addEventListener('change', e => {
+        this.setDailyGoal(e.target.value);
+        this.showToast(`Daily goal set to ${e.target.value} XP.`, 'success');
+      });
+    }
+
+    // Planner: Enter in the new-task box adds the task.
+    const taskInput = document.getElementById('task-title-input');
+    if (taskInput) taskInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); this.addTask(); } });
+
+    // A finished 25-minute Focus Timer session (reading or revision) earns XP.
+    window.addEventListener('woni-focus-complete', () => this.onFocusComplete());
+
     // Import trigger
     const importBtn = document.getElementById('trigger-import-btn');
     const importFile = document.getElementById('import-file');
@@ -384,7 +403,7 @@ const app = {
 
 // --- Merge all domain modules ---
 Object.assign(app, authMixin, dbMixin, aiMixin, routerMixin, particleMixin,
-  dashboardMixin, libraryMixin, uploadMixin, practiceMixin, progressMixin, syncMixin, bankMixin);
+  dashboardMixin, libraryMixin, uploadMixin, practiceMixin, progressMixin, syncMixin, bankMixin, motivationMixin, plannerMixin);
 
 // Expose for legacy compatibility (inline handlers in index.html that haven't been migrated yet)
 window.app = app;

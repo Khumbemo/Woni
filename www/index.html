@@ -25,8 +25,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <!-- Critical CSS: the main stylesheet is loaded by JS, so keep hidden UI hidden until then -->
   <style>.hidden{display:none!important}</style>
-  <script type="module" crossorigin src="/assets/index-DLn57ktC.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-D935M4LX.css">
+  <script type="module" crossorigin src="/assets/index-DS5AMd5l.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-To2LybFi.css">
 <link rel="manifest" href="/manifest.webmanifest"></head>
 <body class="dark-theme">
   <!-- Science Background -->
@@ -167,6 +167,37 @@
           </div>
         </div>
 
+        <div id="today-card" class="today-card">
+          <div id="goal-ring" class="goal-ring" role="img" aria-label="Daily goal"></div>
+          <div class="today-info">
+            <div id="level-name" class="level-name">Level 1 · Novice</div>
+            <div id="level-bar" class="level-bar" role="progressbar" aria-label="Progress to the next level" aria-valuemin="0" aria-valuenow="0" aria-valuemax="50"><div id="level-fill" class="level-fill"></div></div>
+            <div id="level-detail" class="level-detail"></div>
+          </div>
+          <div class="challenge-box">
+            <button id="challenge-btn" class="btn accent" data-action="startDailyChallenge">Daily Challenge</button>
+            <p id="challenge-note" class="challenge-note"></p>
+          </div>
+        </div>
+
+        <div id="plan-card" class="plan-card">
+          <div class="plan-head">
+            <h3>Today</h3>
+            <div id="plan-countdown" class="plan-countdown"></div>
+          </div>
+          <div class="plan-cols">
+            <section aria-labelledby="quests-title">
+              <h4 id="quests-title" class="plan-sub">Daily quests</h4>
+              <ul id="quest-list" class="quest-list"></ul>
+            </section>
+            <section aria-labelledby="tasks-title">
+              <h4 id="tasks-title" class="plan-sub">Tasks due</h4>
+              <ul id="today-tasks" class="task-list"></ul>
+              <button class="btn small" data-action="showPlanner">Open planner</button>
+            </section>
+          </div>
+        </div>
+
         <div class="dashboard-sections">
           <div class="dash-section">
             <h3>Recommended for You</h3>
@@ -260,6 +291,20 @@
               <p>Practice specific topics you're weak in.</p>
             </div>
           </div>
+          <div class="practice-card" data-action="startMixedPractice">
+            <div class="pc-icon"><i data-lucide="shuffle"></i></div>
+            <div class="pc-info">
+              <h4>Mixed Practice</h4>
+              <p>True/false, type the answer, match the pairs and select-all-true, from your questions.</p>
+            </div>
+          </div>
+          <div class="practice-card" data-action="showPlanner">
+            <div class="pc-icon"><i data-lucide="calendar-check"></i></div>
+            <div class="pc-info">
+              <h4>Study Planner</h4>
+              <p>Your tasks, exam countdown and a day-by-day study plan.</p>
+            </div>
+          </div>
           <div class="practice-card" data-action="showQuestionBank">
             <div class="pc-icon"><i data-lucide="list-checks"></i></div>
             <div class="pc-info">
@@ -294,6 +339,10 @@
               <label>Questions</label>
               <input type="number" id="mock-q-count" value="20" min="5" max="100">
             </div>
+            <label class="toggle-row">
+              <input type="checkbox" id="mock-instant">
+              <span><strong>Practice mode</strong>: see the answer and explanation after each question. Leave off to simulate the exam.</span>
+            </label>
             <div class="form-actions">
               <button class="btn" data-action="hideSubView" data-param="mock-test-setup">Cancel</button>
               <button class="btn accent" data-action="startMockTest">Start Test</button>
@@ -316,6 +365,19 @@
           <div class="chart-card">
             <h4>Topic Mastery Heatmap</h4>
             <div id="mastery-heatmap" class="heatmap-container"></div>
+          </div>
+          <div class="chart-card">
+            <h4>Study Calendar</h4>
+            <div class="calendar-wrap">
+              <div class="calendar-days" aria-hidden="true"><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span><span>Sun</span></div>
+              <div id="study-calendar" class="study-calendar" aria-label="Study activity, last 12 weeks"></div>
+            </div>
+            <div class="calendar-legend" aria-hidden="true">Less <span class="cal-cell l0"></span><span class="cal-cell l1"></span><span class="cal-cell l2"></span><span class="cal-cell l3"></span><span class="cal-cell l4"></span> Goal met</div>
+            <p id="calendar-summary" class="muted calendar-summary"></p>
+          </div>
+          <div class="chart-card">
+            <h4>Achievements <span id="badges-count" class="badges-count"></span></h4>
+            <div id="badges-grid" class="badges-grid"></div>
           </div>
         </div>
       </section>
@@ -446,6 +508,15 @@
               </select>
             </div>
             <div class="setting-item">
+              <span>Daily goal</span>
+              <select id="daily-goal-select" aria-label="Daily goal">
+                <option value="30">30 XP (casual)</option>
+                <option value="50">50 XP (regular)</option>
+                <option value="100">100 XP (serious)</option>
+                <option value="200">200 XP (intense)</option>
+              </select>
+            </div>
+            <div class="setting-item">
                <span>Target Exams</span>
                <button class="btn small" data-action="showOnboarding">Change</button>
             </div>
@@ -495,6 +566,32 @@
     <!-- Focus Timer View (Overlay) -->
     <div id="focus-timer-overlay" class="overlay hidden">
       <div id="focus-timer-mount"></div>
+    </div>
+
+    <!-- Study Planner -->
+    <div id="planner-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="planner-title">
+      <div class="overlay-content bank-panel">
+        <div class="bank-head">
+          <h3 id="planner-title">Study Planner</h3>
+          <button class="btn small" data-action="hidePlanner" aria-label="Close planner">✕</button>
+        </div>
+        <section class="planner-exam" aria-labelledby="exam-date-label">
+          <p id="planner-countdown" class="planner-countdown"></p>
+          <div class="planner-row">
+            <label id="exam-date-label" for="exam-date-input">Exam date</label>
+            <input type="date" id="exam-date-input">
+            <button class="btn small" data-action="saveExamDate">Save</button>
+            <button class="btn small accent" data-action="buildPlan">Build my study plan</button>
+          </div>
+          <p class="muted planner-help">The plan gives each topic study days by its importance and how much you still have to learn, with a mock test every week and revision before the exam.</p>
+        </section>
+        <div class="planner-row planner-add">
+          <input type="text" id="task-title-input" maxlength="200" placeholder="Add a task, e.g. Read Lehninger chapter 5" aria-label="New task">
+          <input type="date" id="task-due-input" aria-label="Due date (optional)">
+          <button class="btn small accent" data-action="addTask">Add</button>
+        </div>
+        <div id="planner-list" class="planner-list"></div>
+      </div>
     </div>
 
     <!-- Question Bank -->
