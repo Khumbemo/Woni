@@ -7,11 +7,13 @@ import {
   XP, DEFAULT_DAILY_GOAL, GOAL_CHOICES, dayKey, keyToTime, levelFor, aggregateDays,
   badgeStatus, bestStreak, pickChallenge, calendarCells,
 } from '../gamify.js';
+import { QUEST_XP, questsForDay, questProgress } from '../planner.js';
 
 const DEVICE_KEY = 'woni_device_id';
 const GOAL_KEY = 'woni_daily_goal';
 const SEEN_BADGES_KEY = 'woni_badges_seen';
 const FOCUS_SECONDS = 25 * 60;
+const COUNT_FIELDS = ['xp', 'answered', 'correct', 'cards', 'seconds', 'focus', 'tasks', 'mixed'];
 
 function readJSON(key, fallback) {
   try {
@@ -69,23 +71,55 @@ export const motivationMixin = {
     if (!this.state.db) return 0;
     const date = dayKey(this.now ? this.now() : Date.now());
     const id = `day:${date}:${this.deviceId()}`;
-    const rec = (await this.dbGet('progress', id)) || { id, date, xp: 0, answered: 0, correct: 0, cards: 0, seconds: 0, focus: 0 };
-    for (const f of ['xp', 'answered', 'correct', 'cards', 'seconds', 'focus']) {
-      rec[f] = (Number(rec[f]) || 0) + (Number(delta[f]) || 0);
+    const all = await this._activityRecords();
+    const before = aggregateDays(all).get(date) || { xp: 0, questsDone: [] };
+    const rec = structuredClone(all.find(r => r.id === id)) || { id, date, xp: 0, answered: 0, correct: 0, cards: 0, seconds: 0, focus: 0 };
+    for (const f of COUNT_FIELDS) {
+      if (delta[f]) rec[f] = (Number(rec[f]) || 0) + (Number(delta[f]) || 0);
     }
     if (delta.challenge) rec.challenge = true;
+    if (delta.bestCombo > (rec.bestCombo || 0)) rec.bestCombo = delta.bestCombo;
 
-    const before = aggregateDays(await this._activityRecords()).get(date)?.xp || 0;
+    // Quests finished by this activity earn their bonus once (on any device).
+    const after = aggregateDays([...all.filter(r => r.id !== id), rec]).get(date);
+    const finished = questProgress(await this._questsFor(date), after)
+      .filter(q => q.done && !after.questsDone.includes(q.id));
+    if (finished.length) {
+      rec.questsDone = [...(rec.questsDone || []), ...finished.map(q => q.id)];
+      rec.xp = (Number(rec.xp) || 0) + QUEST_XP * finished.length;
+    }
+    const afterXp = after.xp + QUEST_XP * finished.length;
     const goal = this.getDailyGoal();
-    const after = before + (Number(delta.xp) || 0);
-    const reachedGoal = before < goal && after >= goal;
-    if (after >= goal) rec.goalMet = true;
+    const reachedGoal = before.xp < goal && afterXp >= goal;
+    if (afterXp >= goal) rec.goalMet = true;
     await this.dbPut('progress', rec);
 
-    if (reachedGoal) this.celebrate(`Daily goal reached: ${after} XP today! 🎉`);
+    for (const q of finished) this.celebrate(`Quest complete: ${q.label} (+${QUEST_XP} XP)`);
+    if (reachedGoal) this.celebrate(`Daily goal reached: ${afterXp} XP today! 🎉`);
     await this.checkNewBadges();
     if (this.state.currentView === 'dashboard') this.updateMotivation();
-    return after;
+    return afterXp;
+  },
+
+  /** Which quest types the student has content for. */
+  async _questAvailability() {
+    const count = async store => {
+      try { return await this.dbCount(store); } catch { return 0; }
+    };
+    const [questions, cards, tasks] = await Promise.all([count('questions'), count('flashcards'), count('tasks')]);
+    return { questions: questions > 0, cards: cards > 0, tasks: tasks > 0 };
+  },
+
+  /** Today's quests with progress, for the dashboard. */
+  async getTodayQuests() {
+    const date = dayKey(this.now ? this.now() : Date.now());
+    const day = aggregateDays(await this._activityRecords()).get(date) || {};
+    return questProgress(await this._questsFor(date), day);
+  },
+
+  /** The day's quests (one place, so it can be replaced, e.g. in tests). */
+  async _questsFor(date) {
+    return questsForDay(date, await this._questAvailability());
   },
 
   /** Everything the dashboard, badges and calendar need. */

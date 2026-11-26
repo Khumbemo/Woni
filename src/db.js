@@ -6,7 +6,7 @@ export const dbMixin = {
     return new Promise((resolve) => {
       const attemptInit = async () => {
         try {
-          this.state.db = await idb.openDB('woni_db', 4, {
+          this.state.db = await idb.openDB('woni_db', 5, {
             upgrade(db, oldVersion, newVersion) {
               // Papers store
               if (!db.objectStoreNames.contains('papers')) {
@@ -50,6 +50,11 @@ export const dbMixin = {
               if (!db.objectStoreNames.contains('chat_history')) {
                 db.createObjectStore('chat_history', { keyPath: 'exam' });
               }
+              // Planner tasks (v5)
+              if (!db.objectStoreNames.contains('tasks')) {
+                const tkStore = db.createObjectStore('tasks', { keyPath: 'id', autoIncrement: true });
+                tkStore.createIndex('exam', 'exam');
+              }
             },
           });
           console.log('IndexedDB initialized');
@@ -82,6 +87,9 @@ export const dbMixin = {
   },
   async dbGetAll(storeName) {
     return this.state.db.getAll(storeName);
+  },
+  async dbCount(storeName) {
+    return this.state.db.count(storeName);
   },
   /** Delete a record; synced stores also remember the deletion so other devices drop it too. */
   async dbDelete(storeName, key) {

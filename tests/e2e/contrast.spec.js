@@ -71,6 +71,47 @@ const screens = {
     await page.locator('.option-btn').first().click();
     await expect(page.locator('#instant-feedback')).toBeVisible();
   },
+  planner: async page => {
+    await page.evaluate(async () => {
+      const app = window.app;
+      const d = n => { const x = new Date(); x.setDate(x.getDate() + n); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
+      await app.dbPut('progress', { id: 'exam:csir_net', exam: 'csir_net', date: d(30) });
+      await app.dbAdd('tasks', { title: 'Overdue reading', due: d(-1), exam: 'csir_net', source: 'user', done: false, createdAt: 1 });
+      await app.dbAdd('tasks', { title: 'Study Genetics', due: d(0), exam: 'csir_net', source: 'plan', kind: 'topic', topic: 'Genetics', done: false, createdAt: 2 });
+      await app.dbAdd('tasks', { title: 'Finished task', exam: 'csir_net', source: 'user', done: true, doneAt: 3, createdAt: 3 });
+      await app.showPlanner();
+    });
+    await expect(page.locator('#planner-list .task-row')).toHaveCount(3);
+  },
+  'today plan': async page => {
+    await page.evaluate(() => { window.app.hideSubView('planner-overlay'); window.app.showView('dashboard'); });
+    await expect(page.locator('#quest-list .quest').first()).toBeVisible();
+  },
+  'mixed formats': async page => {
+    await page.evaluate(async () => {
+      const app = window.app;
+      const qs = (await app.dbGetAll('questions')).map(q => ({ ...q, flagged: false }));
+      const base = qs[0];
+      const many = Array.from({ length: 4 }, (_, i) => ({ ...base, id: undefined, text: `Question ${i}?`, options: [`Answer ${i}`, `Other ${i}`], answer: 'A' }));
+      app.openSession('Mixed Practice', 'mixed', [
+        { kind: 'tf', q: many[0], proposed: many[0].options[1], truth: false, topic: base.topic },
+        { kind: 'typed', q: many[1], answer: 'Answer 1', topic: base.topic },
+        { kind: 'match', pairs: many.slice(0, 3).map(q => ({ q, prompt: q.text, answer: q.options[0] })), choices: many.slice(0, 3).map(q => q.options[0]), topic: base.topic },
+        { kind: 'multi', statements: many.map((q, i) => ({ q, answer: q.options[i % 2], truth: i % 2 === 0 })), topic: base.topic },
+      ], { instant: true });
+    });
+    await page.keyboard.press('f');
+    await page.click('#next-q-btn');
+    await page.fill('#typed-answer', 'wrong');
+    await page.click('#typed-submit');
+    await page.click('#next-q-btn');
+    for (let k = 0; k < 3; k++) await page.selectOption(`#match-${k}`, String((k + 1) % 3));
+    await page.click('#match-submit');
+    await page.click('#next-q-btn');
+    await page.check('#multi-1');
+    await page.click('#multi-submit');
+    await expect(page.locator('#instant-feedback')).toContainText('Not quite');
+  },
   'sign in': page => page.evaluate(() => document.getElementById('auth-overlay').classList.remove('hidden')),
   onboarding: page => page.evaluate(() => window.app.showOnboarding()),
   toasts: async page => {

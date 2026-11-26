@@ -21,6 +21,8 @@ async function setup(page) {
   await page.evaluate(async () => {
     const app = window.app;
     app.confirmAction = async () => true;
+    // Quests (tested in planner.spec.js) vary by date; turn them off so XP totals are exact.
+    app._questsFor = async () => [];
     // Every question's answer is C, so tests can answer right or wrong on purpose.
     const topics = ['Genetics', 'Ecology', 'Cell Biology'];
     for (let i = 0; i < 6; i++) {

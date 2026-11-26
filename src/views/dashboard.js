@@ -32,6 +32,7 @@ export const dashboardMixin = {
     const streakEl = document.getElementById('dash-streak');
     if (streakEl) streakEl.textContent = `${stats.streak}d`;
     this.updateMotivation();
+    this.renderTodayPlan();
 
     if (examId) {
       const topics = await this.dbGetFromIndex('topics', 'exam', examId);

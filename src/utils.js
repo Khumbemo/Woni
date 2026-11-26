@@ -136,6 +136,7 @@ export const SYNC_STORES = {
   progress: { autoKey: false, key: 'id' },
   chat_history: { autoKey: false, key: 'exam' },
   library: { autoKey: true, binary: true },
+  tasks: { autoKey: true },
 };
 
 function randomId() {

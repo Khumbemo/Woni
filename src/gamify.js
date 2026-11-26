@@ -53,17 +53,26 @@ export function levelFor(totalXp) {
   };
 }
 
-const ACTIVITY_FIELDS = ['xp', 'answered', 'correct', 'cards', 'seconds'];
+const ACTIVITY_FIELDS = ['xp', 'answered', 'correct', 'cards', 'seconds', 'focus', 'tasks', 'mixed'];
 
-/** Sum activity records by date: Map('YYYY-MM-DD' -> totals, goalMet, challenge). */
+/**
+ * Sum activity records by date: Map('YYYY-MM-DD' -> totals). Counts are
+ * summed across devices; bestCombo is the best of any device; questsDone is
+ * every quest rewarded on any device.
+ */
 export function aggregateDays(records) {
   const days = new Map();
   for (const r of records || []) {
     if (!r || typeof r.date !== 'string') continue;
-    const d = days.get(r.date) || { date: r.date, xp: 0, answered: 0, correct: 0, cards: 0, seconds: 0, goalMet: false, challenge: false };
+    const d = days.get(r.date) || {
+      date: r.date, xp: 0, answered: 0, correct: 0, cards: 0, seconds: 0, focus: 0, tasks: 0, mixed: 0,
+      bestCombo: 0, goalMet: false, challenge: false, questsDone: [],
+    };
     for (const f of ACTIVITY_FIELDS) d[f] += Number(r[f]) || 0;
+    d.bestCombo = Math.max(d.bestCombo, Number(r.bestCombo) || 0);
     d.goalMet ||= !!r.goalMet;
     d.challenge ||= !!r.challenge;
+    if (Array.isArray(r.questsDone)) d.questsDone = [...new Set([...d.questsDone, ...r.questsDone])];
     days.set(r.date, d);
   }
   return days;

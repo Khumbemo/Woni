@@ -178,6 +178,24 @@
           </div>
         </div>
 
+        <div id="plan-card" class="plan-card">
+          <div class="plan-head">
+            <h3>Today</h3>
+            <div id="plan-countdown" class="plan-countdown"></div>
+          </div>
+          <div class="plan-cols">
+            <section aria-labelledby="quests-title">
+              <h4 id="quests-title" class="plan-sub">Daily quests</h4>
+              <ul id="quest-list" class="quest-list"></ul>
+            </section>
+            <section aria-labelledby="tasks-title">
+              <h4 id="tasks-title" class="plan-sub">Tasks due</h4>
+              <ul id="today-tasks" class="task-list"></ul>
+              <button class="btn small" data-action="showPlanner">Open planner</button>
+            </section>
+          </div>
+        </div>
+
         <div class="dashboard-sections">
           <div class="dash-section">
             <h3>Recommended for You</h3>
@@ -269,6 +287,20 @@
             <div class="pc-info">
               <h4>Topic Mastery</h4>
               <p>Practice specific topics you're weak in.</p>
+            </div>
+          </div>
+          <div class="practice-card" data-action="startMixedPractice">
+            <div class="pc-icon"><i data-lucide="shuffle"></i></div>
+            <div class="pc-info">
+              <h4>Mixed Practice</h4>
+              <p>True/false, type the answer, match the pairs and select-all-true, from your questions.</p>
+            </div>
+          </div>
+          <div class="practice-card" data-action="showPlanner">
+            <div class="pc-icon"><i data-lucide="calendar-check"></i></div>
+            <div class="pc-info">
+              <h4>Study Planner</h4>
+              <p>Your tasks, exam countdown and a day-by-day study plan.</p>
             </div>
           </div>
           <div class="practice-card" data-action="showQuestionBank">
@@ -532,6 +564,32 @@
     <!-- Focus Timer View (Overlay) -->
     <div id="focus-timer-overlay" class="overlay hidden">
       <div id="focus-timer-mount"></div>
+    </div>
+
+    <!-- Study Planner -->
+    <div id="planner-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="planner-title">
+      <div class="overlay-content bank-panel">
+        <div class="bank-head">
+          <h3 id="planner-title">Study Planner</h3>
+          <button class="btn small" data-action="hidePlanner" aria-label="Close planner">✕</button>
+        </div>
+        <section class="planner-exam" aria-labelledby="exam-date-label">
+          <p id="planner-countdown" class="planner-countdown"></p>
+          <div class="planner-row">
+            <label id="exam-date-label" for="exam-date-input">Exam date</label>
+            <input type="date" id="exam-date-input">
+            <button class="btn small" data-action="saveExamDate">Save</button>
+            <button class="btn small accent" data-action="buildPlan">Build my study plan</button>
+          </div>
+          <p class="muted planner-help">The plan gives each topic study days by its importance and how much you still have to learn, with a mock test every week and revision before the exam.</p>
+        </section>
+        <div class="planner-row planner-add">
+          <input type="text" id="task-title-input" maxlength="200" placeholder="Add a task, e.g. Read Lehninger chapter 5" aria-label="New task">
+          <input type="date" id="task-due-input" aria-label="Due date (optional)">
+          <button class="btn small accent" data-action="addTask">Add</button>
+        </div>
+        <div id="planner-list" class="planner-list"></div>
+      </div>
     </div>
 
     <!-- Question Bank -->

@@ -185,6 +185,21 @@ Study activity is kept per device per day in the synced `progress` store (`day:Y
 
 Tests: 16 new unit tests (levels, badges, challenge mixing, calendar, cross-device totals, concurrent logging) and 6 new end-to-end tests (practice mode, exam mode, daily challenge, goal ring and celebration, badges and calendar, flashcard/focus XP, reduced motion). The contrast audit now also covers the practice-mode feedback.
 
+## Phase 8: Done (tasks, plan, quests, question formats)
+
+| Feature | How it works |
+|---|---|
+| **Daily quests** | 3 a day from a pool of 8 (answer 15, get 10 right, review 10 cards, a focus session, the daily challenge, 5 in a row, tick off a task, 5 mixed-format questions), only ones you have content for. The same 3 on every device (chosen from the date). Each finished quest pays +20 XP once, even across devices, and counts towards the daily goal. |
+| **Study planner** | Tasks with optional due dates, grouped Overdue / Today / Upcoming / No date / Done. Ticking a task gives +5 XP once. Overdue and today's tasks show on the dashboard. Tasks sync and are in backups (new `tasks` store, database version 5; existing data is kept, tested). |
+| **Exam countdown and plan** | Set the exam date; "Build my study plan" fills the planner with a task per day (up to 8 weeks): topics get days in proportion to importance × what's left to learn, spread out (weighted round-robin), a mock test every 7th day and revision on the last 2 days. Rebuilding replaces the plan's upcoming tasks; "Start" opens practice for that day's topic. |
+| **Mixed practice** | 10 items made from your multiple-choice questions: true/false, type the answer, match 3-4 pairs, and select every correct question→answer pair. All with instant feedback, XP, combos and topic mastery. |
+
+Typed answers ignore case, accents, punctuation and "the/a/an", but forgive typos only in longer answers (1 for 8-11 letters, 2 for 12+), because many short terms differ by one letter (lipase/ligase, IgG/IgA); numbers must match, and typing one of the wrong options is always wrong.
+
+Found and fixed while testing: the planner cleared its input boxes after saving, which could wipe a task typed straight after the previous one.
+
+Tests: 21 new unit tests and 5 new end-to-end tests (database upgrade, planner, plan, quests, every mixed format); the contrast audit now covers the planner, the Today panel and all four formats.
+
 ## Steps only you can do
 
 These need your Firebase or Cloudflare accounts:
