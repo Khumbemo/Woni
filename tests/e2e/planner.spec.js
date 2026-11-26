@@ -221,7 +221,22 @@ test('mixed practice: every format, right and wrong answers, XP and results', as
     return { mixed: days[0].mixed, answered: days[0].answered };
   });
   expect(stats).toEqual({ mixed: 10, answered: 10 });
-  // Topic mastery moved.
-  const mastery = await page.evaluate(async () => (await window.app.dbGet('topics', 'csir_net_Cell Biology')).mastery);
-  expect(mastery).not.toBe(80);
+  // Each topic in the session now has its session score as mastery (first practice of these topics).
+  const check = await page.evaluate(async () => {
+    const s = window.app.state.session;
+    const per = {};
+    s.data.forEach((item, i) => {
+      const t = item.topic || 'General';
+      per[t] ??= { right: 0, total: 0 };
+      per[t].total++;
+      if (s.answers[i]?.right) per[t].right++;
+    });
+    const out = [];
+    for (const [t, v] of Object.entries(per)) {
+      out.push([t, Math.round((v.right / v.total) * 100), (await window.app.dbGet('topics', `csir_net_${t}`))?.mastery]);
+    }
+    return out;
+  });
+  expect(check.length).toBeGreaterThan(0);
+  for (const [, expected, actual] of check) expect(actual).toBe(expected);
 });
