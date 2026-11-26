@@ -4,6 +4,7 @@
  * they came from. Editing a question also rewrites its flashcard.
  */
 import { answerToLetter } from '../utils.js';
+import { inNotebook } from '../studytools.js';
 
 const PAGE = 50;
 
@@ -56,6 +57,8 @@ export const bankMixin = {
       if (filter === 'reported' && !item.flagged) return false;
       if (filter === 'ai' && item.answerSource === 'paper') return false;
       if (filter === 'disputed' && item.recheck?.agrees !== false) return false;
+      if (filter === 'mistakes' && !inNotebook(item)) return false;
+      if (filter === 'starred' && !item.starred && !item.note) return false;
       if (!q) return true;
       return [item.text, item.topic, item.explanation, ...(item.options || [])].some(s => String(s || '').toLowerCase().includes(q));
     }).sort((a, b) => (b.flagged ? 1 : 0) - (a.flagged ? 1 : 0) || (b.updatedAt || 0) - (a.updatedAt || 0));
@@ -72,6 +75,8 @@ export const bankMixin = {
         item.flagged ? '<span class="ar-badge bad">Reported</span>' : '',
         item.answerSource === 'ai' ? '<span class="ar-badge warn">AI answer</span>' : '',
         item.recheck?.agrees === false ? '<span class="ar-badge bad">Disputed</span>' : '',
+        inNotebook(item) ? `<span class="ar-badge warn">Missed ${item.mistake.count}×</span>` : '',
+        item.starred ? '<span class="ar-badge ok">★ Starred</span>' : '',
       ].join('');
       return `
         <div class="bank-item">
@@ -81,6 +86,7 @@ export const bankMixin = {
             <button class="btn small" data-action="editQuestion" data-param="${item.id}">Edit</button>
             <button class="btn small danger" data-action="deleteQuestion" data-param="${item.id}">Delete</button>
           </div>
+          ${this.starNoteHtml?.('q', item) || ''}
         </div>`;
     }).join('') + (matches.length > shown
       ? `<button class="btn bank-more" data-action="showMoreQuestions">Show ${Math.min(PAGE, matches.length - shown)} more</button>` : '');

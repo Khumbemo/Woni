@@ -17,6 +17,10 @@ Woni is a specialized exam preparation app designed for students targeting **CSI
 - **Daily Quests**: 3 small goals a day (e.g. "Review 10 flashcards", "Finish a focus session") that tick themselves off as you study, for +20 XP each.
 - **Study Planner & Exam Countdown**: Your own tasks with due dates, plus a day-by-day study plan built from your exam date and your weakest, most important topics (with weekly mock tests and revision days). Today's tasks and quests are on the dashboard.
 - **Mixed Practice**: True/false, type-the-answer, match-the-pairs and select-all-that-are-true, made from your saved questions.
+- **Mistake Notebook**: Every question you get wrong is collected; "Retry my mistakes" brings them back until you get each right twice in a row.
+- **Stars & Notes**: Star any question or flashcard, write your own note on it, and practise just your starred items. Notes sync across devices.
+- **AI Flashcards & Summary**: Turn a paper, pages of a library book or pasted notes into editable flashcards and a one-page revision summary (save as PDF).
+- **Daily Reminder & Read Aloud**: Add a daily study reminder to your phone or computer calendar (works even with Woni closed), plus an in-app reminder; a Listen button reads questions, options and flashcards aloud.
 - **XP, Levels, Daily Goal & Badges**: Every answer, flashcard and 25-minute focus session earns XP. A daily goal ring on the dashboard, 11 achievements, a 12-week study calendar and a streak that counts any kind of study. Celebrations respect the system's reduced-motion setting.
 - **Spaced Repetition Flashcards**: Auto-generated flashcards with an SM-2 algorithm to optimize retention.
 - **Progress Tracking**: Visualized performance trends and topic mastery heatmaps.

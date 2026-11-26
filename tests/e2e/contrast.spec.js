@@ -112,6 +112,38 @@ const screens = {
     await page.click('#multi-submit');
     await expect(page.locator('#instant-feedback')).toContainText('Not quite');
   },
+  'starred & notes': async page => {
+    await page.evaluate(async () => {
+      const app = window.app;
+      const [q] = await app.dbGetAll('questions');
+      await app.dbPut('questions', { ...q, starred: true, note: 'My note about this question.', mistake: { count: 2, lastWrong: Date.now(), streak: 0 } });
+      app.hideSubView('active-session-overlay');
+      await app.showStarred();
+    });
+    await expect(page.locator('#starred-list .item-note')).toBeVisible();
+  },
+  'note editor': async page => {
+    await page.evaluate(async () => {
+      const [q] = await window.app.dbGetAll('questions');
+      await window.app.editNote(`q:${q.id}`);
+    });
+    await expect(page.locator('#note-overlay')).toBeVisible();
+  },
+  'ai notes': async page => {
+    await page.evaluate(async () => {
+      const app = window.app;
+      app.hideSubView('starred-overlay');
+      app.hideSubView('note-overlay');
+      await app.showAiNotes();
+      app.state.aiNotes = {
+        cards: [{ front: 'What does helicase do?', back: 'Unwinds DNA.', keep: true }],
+        summary: { title: 'DNA replication', points: ['Helicase unwinds DNA'], keyTerms: [{ term: 'Primer', meaning: 'Short RNA start' }] },
+      };
+      app._renderAiOutput();
+      document.getElementById('ai-status').textContent = 'Summary ready.';
+    });
+    await expect(page.locator('.ai-summary')).toBeVisible();
+  },
   'sign in': page => page.evaluate(() => document.getElementById('auth-overlay').classList.remove('hidden')),
   onboarding: page => page.evaluate(() => window.app.showOnboarding()),
   toasts: async page => {
@@ -134,7 +166,7 @@ for (const theme of ['dark', 'light']) {
     const failures = [];
     for (const [name, open] of Object.entries(screens)) {
       await page.evaluate(() => {
-        for (const id of ['question-bank-overlay', 'question-edit-overlay', 'active-session-overlay', 'auth-overlay', 'onboarding-overlay']) document.getElementById(id)?.classList.add('hidden');
+        for (const id of ['question-bank-overlay', 'question-edit-overlay', 'active-session-overlay', 'auth-overlay', 'onboarding-overlay', 'planner-overlay', 'starred-overlay', 'note-overlay', 'ai-notes-overlay']) document.getElementById(id)?.classList.add('hidden');
       });
       await open(page);
       await page.waitForTimeout(700); // view transitions and animations settle

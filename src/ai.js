@@ -1,5 +1,6 @@
 // Legacy build: same API, transpiled for older Android WebViews / Safari.
 import pdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
+import { NOTES_MAX_CHARS } from './studytools.js';
 import { parseJSON, splitIntoChunks, findAnswerKey, salvageArray, mergeAnalyses, textAfterQuestion } from './utils.js';
 
 // pdf.js and Tesseract are large; load them only when a file is analyzed.
@@ -48,7 +49,7 @@ export const aiMixin = {
    * Text of a PDF. Pages without a text layer (scans, photos) are rendered
    * and read with OCR. `onProgress(message)` reports long steps.
    */
-  async extractPDFText(file, onProgress = () => {}) {
+  async extractPDFText(file, onProgress = () => {}, { from = 1, to = Infinity } = {}) {
     const pdfjsLib = await loadPdfjs();
     const ab = await file.arrayBuffer();
     // Uploaded PDFs are untrusted: never let pdf.js evaluate code from them
@@ -58,14 +59,15 @@ export const aiMixin = {
     let ocr = null;
     try {
       const pages = [];
-      const maxPages = Math.min(pdf.numPages, MAX_PDF_PAGES);
+      const first = Math.max(1, Math.floor(from) || 1);
+      const last = Math.min(pdf.numPages, Math.floor(to) || pdf.numPages, first + MAX_PDF_PAGES - 1);
       let ocrPages = 0;
-      for (let p = 1; p <= maxPages; p++) {
+      for (let p = first; p <= last; p++) {
         const page = await pdf.getPage(p);
         const content = await page.getTextContent();
         let text = content.items.map(i => i.str || '').join(' ').trim();
         if (text.replace(/\s/g, '').length < SCANNED_PAGE_CHARS && ocrPages < MAX_OCR_PAGES) {
-          onProgress(`Reading scanned page ${p} of ${maxPages} (OCR)...`);
+          onProgress(`Reading scanned page ${p} of ${last} (OCR)...`);
           ocr ??= await this._ocrWorker();
           const canvas = await renderPageToCanvas(page);
           const { data } = await ocr.recognize(canvas);
@@ -239,6 +241,34 @@ ${key}
 <paper>
 ${part.text}
 </paper>`;
+  },
+
+  /** Flashcards from study text (a paper, notes, book pages). Returns the parsed reply. */
+  async generateStudyCards(examId, text, onProgress) {
+    const prompt = `You are an expert tutor for the ${examId} exam. Make up to 15 flashcards from the study text below.
+Each card tests ONE important fact, definition, mechanism or number from the text. Use only information in the text.
+"front": a clear question (not yes/no). "back": a short, complete answer (one to three sentences).
+
+Return ONLY a JSON object: { "cards": [ { "front": "...", "back": "..." } ] }
+
+<text>
+${String(text).slice(0, NOTES_MAX_CHARS)}
+</text>`;
+    return this.parseJSON(await this._withRateLimitRetry(() => this.groqCall(prompt, { maxTokens: 4000 }), onProgress));
+  },
+
+  /** A one-page revision summary of study text. Returns the parsed reply. */
+  async generateSummary(examId, text, onProgress) {
+    const prompt = `You are an expert tutor for the ${examId} exam. Write a one-page revision summary of the study text below.
+Use only information in the text. Focus on what is most likely to be examined.
+"title": a short title. "points": 5 to 15 short bullet points, most important first. "keyTerms": up to 10 terms with a one-line meaning.
+
+Return ONLY a JSON object: { "title": "...", "points": ["..."], "keyTerms": [ { "term": "...", "meaning": "..." } ] }
+
+<text>
+${String(text).slice(0, NOTES_MAX_CHARS)}
+</text>`;
+    return this.parseJSON(await this._withRateLimitRetry(() => this.groqCall(prompt, { maxTokens: 3000 }), onProgress));
   },
 
   /** Run an AI call, waiting and retrying when the per-minute limit is hit (not the daily one). */

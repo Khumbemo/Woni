@@ -13,6 +13,7 @@ const MAX_SESSION_SECONDS = 2 * 60 * 60;
 
 export const practiceMixin = {
   async updatePracticeView() {
+    this.updateToolCounts?.();
     const select = document.getElementById('mock-exam-select');
     if (select) {
       select.innerHTML = this.state.userExams.map(ex =>
@@ -116,6 +117,7 @@ export const practiceMixin = {
     const footer = document.getElementById('session-footer');
     if (!content || !footer) return;
     const item = s.data[s.index];
+    this.stopSpeaking?.();
 
     if (!item) {
       this.renderSessionResults();
@@ -124,7 +126,7 @@ export const practiceMixin = {
 
     if (s.type === 'test') {
       content.innerHTML = `
-        <div class="q-header">Question ${s.index + 1} of ${s.data.length}${s.instant ? ' · Practice mode' : ''}${s.combo >= 2 ? ` <span class="combo-chip">🔥 ${s.combo} in a row</span>` : ''}</div>
+        <div class="q-header">Question ${s.index + 1} of ${s.data.length}${s.instant ? ' · Practice mode' : ''}${s.combo >= 2 ? ` <span class="combo-chip">🔥 ${s.combo} in a row</span>` : ''}${this.listenButtonHtml?.() || ''}</div>
         <div class="q-text">${this.escapeHtml(item.text)}</div>
         <p class="kbd-hint">Keyboard: A–D to answer · Enter for next · Esc to exit</p>
         <div class="options-grid">
@@ -149,7 +151,8 @@ export const practiceMixin = {
         </div>
         <p class="muted" style="text-align:center;margin-top:16px">Tap card to flip</p>
         <p class="kbd-hint" style="text-align:center">Keyboard: Space to show answer · 1 Again · 2 Hard · 3 Good · 4 Easy</p>
-        <p style="text-align:center"><button class="btn small" id="report-card-btn" data-action="reportFlashcard">Report wrong card</button></p>
+        <p class="card-tools">${this.listenButtonHtml?.() || ''}<button class="btn small" id="report-card-btn" data-action="reportFlashcard">Report wrong card</button></p>
+        ${this.starNoteHtml?.('c', item) || ''}
       `;
       footer.innerHTML = `
         <div class="sm2-btns hidden" id="sm2-btns">
@@ -251,8 +254,10 @@ export const practiceMixin = {
         ${right ? '' : `<div class="if-answer">Answer: ${this.escapeHtml(correctText)}</div>`}
         ${q.explanation ? `<div class="if-exp">${this.escapeHtml(q.explanation)}</div>` : ''}
         ${q.answerSource === 'ai' ? '<div class="if-exp">This answer was chosen by AI, not taken from an answer key.</div>' : ''}
-        ${q.id !== undefined ? `<button class="btn small" data-action="reportQuestion" data-param="${q.id}">Report wrong answer</button>` : ''}`;
+        ${q.id !== undefined ? `<button class="btn small" data-action="reportQuestion" data-param="${q.id}">Report wrong answer</button>` : ''}
+        ${this.starNoteHtml?.('q', q) || ''}`;
     }
+    this.recordAnswers?.([{ id: q.id, right }]);
     this.logActivity({ xp, answered: 1, correct: right ? 1 : 0, bestCombo: s.combo }).catch(e => console.error('Could not log activity', e));
   },
 
@@ -328,8 +333,9 @@ export const practiceMixin = {
         if (s.answers[i] && s.answers[i] === answerToLetter(q)) { correctCount++; topicStats[topicName].correct++; }
       });
       const score = Math.round((correctCount / s.data.length) * 100);
-      // Exam mode awards XP at the end (practice mode already did, answer by answer).
+      // Exam mode awards XP and records mistakes at the end (practice mode did it answer by answer).
       if (!s.instant) {
+        this.recordAnswers?.(s.data.map((q, i) => (s.answers[i] ? { id: q.id, right: s.answers[i] === answerToLetter(q) } : null)));
         const answered = s.answers.filter(Boolean).length;
         const xp = correctCount * XP.correct + (answered - correctCount) * XP.attempt;
         s.xp += xp;
@@ -373,6 +379,7 @@ export const practiceMixin = {
         ${q.explanation ? `<div class="review-exp">${this.escapeHtml(q.explanation)}</div>` : ''}
         ${q.answerSource === 'ai' ? '<div class="review-exp">The answer to this question was chosen by AI, not taken from an answer key.</div>' : ''}
         ${q.id !== undefined ? `<button class="btn small" data-action="reportQuestion" data-param="${q.id}">Report wrong answer</button>` : ''}
+        ${this.starNoteHtml?.('q', q) || ''}
       </div>`;
   },
 
@@ -447,7 +454,7 @@ export const practiceMixin = {
         <button class="btn accent" data-action="submitMulti" id="multi-submit">Check</button>`;
     }
     content.innerHTML = `
-      <div class="q-header">Question ${s.index + 1} of ${s.data.length} · ${names[item.kind]}${s.combo >= 2 ? ` <span class="combo-chip">🔥 ${s.combo} in a row</span>` : ''}</div>
+      <div class="q-header">Question ${s.index + 1} of ${s.data.length} · ${names[item.kind]}${s.combo >= 2 ? ` <span class="combo-chip">🔥 ${s.combo} in a row</span>` : ''}${this.listenButtonHtml?.() || ''}</div>
       ${body}
       <div id="instant-feedback" class="instant-feedback hidden" aria-live="polite"></div>`;
     footer.innerHTML = `<button class="btn" data-action="exitSession">Exit</button><div style="flex:1"></div><button class="btn accent" data-action="nextQuestion" id="next-q-btn" disabled>Next →</button>`;
@@ -482,7 +489,7 @@ export const practiceMixin = {
     const answer = correctText(item.q);
     this._finishMixed(right, item.truth
       ? `True: ${this.escapeHtml(answer)} is the answer.`
-      : `False: the answer is ${this.escapeHtml(answer)}, not ${this.escapeHtml(item.proposed)}.`, item.q);
+      : `False: the answer is ${this.escapeHtml(answer)}, not ${this.escapeHtml(item.proposed)}.`, item.q, [{ id: item.q.id, right }]);
   },
 
   submitTyped() {
@@ -497,7 +504,7 @@ export const practiceMixin = {
     document.getElementById('typed-submit')?.setAttribute('disabled', '');
     this._finishMixed(right, right
       ? `The answer is ${this.escapeHtml(item.answer)}.`
-      : `You wrote “${this.escapeHtml(typed)}”. The answer is <strong>${this.escapeHtml(item.answer)}</strong>.`, item.q);
+      : `You wrote “${this.escapeHtml(typed)}”. The answer is <strong>${this.escapeHtml(item.answer)}</strong>.`, item.q, [{ id: item.q.id, right }]);
   },
 
   submitMatch() {
@@ -506,26 +513,30 @@ export const practiceMixin = {
     const chosen = item.pairs.map((_, i) => document.getElementById(`match-${i}`)?.value ?? '');
     if (chosen.some(v => v === '')) { this.showToast('Choose an answer for every question.', 'info'); return; }
     let rightCount = 0;
+    const perQuestion = [];
     item.pairs.forEach((p, i) => {
       const sel = document.getElementById(`match-${i}`);
       const ok = item.choices[Number(chosen[i])] === p.answer;
+      perQuestion.push({ id: p.q.id, right: ok });
       if (ok) rightCount++;
       if (sel) { sel.disabled = true; sel.classList.add(ok ? 'correct' : 'wrong'); }
     });
     document.getElementById('match-submit')?.setAttribute('disabled', '');
     const right = rightCount === item.pairs.length;
     const key = item.pairs.map((p, i) => `<li>${this.escapeHtml(p.prompt.slice(0, 80))} → <strong>${this.escapeHtml(p.answer)}</strong></li>`).join('');
-    this._finishMixed(right, `${rightCount} of ${item.pairs.length} matched correctly.${right ? '' : `<ol class="match-key">${key}</ol>`}`);
+    this._finishMixed(right, `${rightCount} of ${item.pairs.length} matched correctly.${right ? '' : `<ol class="match-key">${key}</ol>`}`, null, perQuestion);
   },
 
   submitMulti() {
     const item = this._mixedItem();
     if (!item || item.kind !== 'multi') return;
     let wrongCount = 0;
+    const perQuestion = [];
     item.statements.forEach((st, i) => {
       const box = document.getElementById(`multi-${i}`);
       const ticked = !!box?.checked;
       if (ticked !== st.truth) wrongCount++;
+      perQuestion.push({ id: st.q.id, right: ticked === st.truth });
       if (box) {
         box.disabled = true;
         box.closest('li')?.classList.add(st.truth ? 'correct' : 'wrong-pair', ticked === st.truth ? 'got' : 'missed');
@@ -535,11 +546,11 @@ export const practiceMixin = {
     const truths = item.statements.filter(st => st.truth).length;
     this._finishMixed(wrongCount === 0, wrongCount === 0
       ? `All ${truths} correct pair${truths === 1 ? '' : 's'} found.`
-      : `${truths} pair${truths === 1 ? ' was' : 's were'} correct (marked in green); ${wrongCount} of your choices were off.`);
+      : `${truths} pair${truths === 1 ? ' was' : 's were'} correct (marked in green); ${wrongCount} of your choices were off.`, null, perQuestion);
   },
 
   /** Shared by every mixed format: record, explain, combo and XP. */
-  _finishMixed(right, detailHtml, q = null) {
+  _finishMixed(right, detailHtml, q = null, perQuestion = []) {
     const s = this.state.session;
     s.answers[s.index] = { right };
     s.combo = right ? s.combo + 1 : 0;
@@ -557,8 +568,10 @@ export const practiceMixin = {
           ${s.combo >= 2 ? `<span class="combo-chip">🔥 ${s.combo} in a row</span>` : ''}</div>
         <div class="if-answer">${detailHtml}</div>
         ${q?.explanation ? `<div class="if-exp">${this.escapeHtml(q.explanation)}</div>` : ''}
-        ${q?.id !== undefined && q ? `<button class="btn small" data-action="reportQuestion" data-param="${q.id}">Report wrong answer</button>` : ''}`;
+        ${q?.id !== undefined && q ? `<button class="btn small" data-action="reportQuestion" data-param="${q.id}">Report wrong answer</button>` : ''}
+        ${q ? this.starNoteHtml?.('q', q) || '' : ''}`;
     }
+    this.recordAnswers?.(perQuestion);
     this.logActivity({ xp, answered: 1, correct: right ? 1 : 0, mixed: 1, bestCombo: s.combo })
       .catch(e => console.error('Could not log activity', e));
   },
@@ -578,6 +591,7 @@ export const practiceMixin = {
   async exitSession(force) {
     if (force === 'force' || await this.confirmAction('Are you sure you want to exit?')) {
       if (this.state.sessionTimer) clearInterval(this.state.sessionTimer);
+      this.stopSpeaking?.();
       // Flashcard and mixed-practice time counts as study time (test time is saved with the test).
       const s = this.state.session;
       if ((s?.type === 'flashcard' || s?.type === 'mixed') && !s.timeLogged) {
